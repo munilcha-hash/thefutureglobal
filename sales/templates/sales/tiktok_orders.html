@@ -1,0 +1,47 @@
+{% extends 'sales/base.html' %}
+{% load sales_filters %}
+
+{% block title %}틱톡 주문{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0">틱톡샵 주문</h4>
+        <small class="text-muted">총 {{ total_count }}건{% if selected_brand %} ({{ selected_brand }}){% endif %}</small>
+    </div>
+    <select class="form-select form-select-sm" style="width:auto" onchange="location.href='?brand='+this.value">
+        <option value="">전체 브랜드</option>
+        {% for b in brands %}<option value="{{ b }}" {% if selected_brand == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+    </select>
+</div>
+
+<div class="card">
+    <div class="card-body p-0" style="overflow-x:auto">
+        <table class="table table-sm table-hover table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>날짜</th><th>브랜드</th><th>주문ID</th><th>상태</th>
+                    <th class="text-end">금액($)</th><th>상품명</th><th>SKU</th>
+                    <th class="text-end">수량</th><th>주</th><th>도시</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for o in orders %}
+                <tr>
+                    <td>{{ o.order_date|date:"m/d" }}</td>
+                    <td><span class="badge bg-dark">{{ o.brand }}</span></td>
+                    <td style="font-size:0.75rem">{{ o.order_id }}</td>
+                    <td><span class="badge {% if o.order_status == 'Completed' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ o.order_status }}</span></td>
+                    <td class="text-end">{{ o.final_amount|usd }}</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.product_name }}</td>
+                    <td>{{ o.seller_sku }}</td>
+                    <td class="text-end">{{ o.quantity }}</td>
+                    <td>{{ o.shipping_state }}</td>
+                    <td>{{ o.shipping_city }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

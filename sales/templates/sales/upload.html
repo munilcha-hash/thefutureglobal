@@ -1,0 +1,36 @@
+{% extends 'sales/base.html' %}
+
+{% block title %}데이터 업로드{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-upload"></i> 엑셀 파일 업로드</div>
+            <div class="card-body">
+                <p class="text-muted mb-4">매출/손익 관리 엑셀 파일(.xlsx)을 업로드하면 자동으로 데이터가 임포트됩니다. 기존 데이터는 덮어씌워집니다.</p>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="file" class="form-label">엑셀 파일 선택</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                        <div class="form-text">지원 형식: .xlsx</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-cloud-upload"></i> 업로드 및 임포트
+                    </button>
+                </form>
+
+                <hr>
+                <h6>업로드 파일 요구사항</h6>
+                <ul class="text-muted small">
+                    <li>시트명 규칙: '손익관리_1월', '손익관리_2월' 등</li>
+                    <li>브랜드 매출 시트: '닥터블릿 매출_1월', 'Calo 매출_1월' 등</li>
+                    <li>'쇼피파이 매출_RAW', '틱톡샵 매출_RAW' 시트 포함 가능</li>
+                    <li>'Tax_TT' 시트로 주별 세금 데이터 임포트</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends 'sales/base.html' %}
+{% load sales_filters %}
+
+{% block title %}{{ month }}월 손익관리{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0">{{ year }}년 {{ month }}월 손익관리</h4>
+        {% if exchange_rate %}<small class="text-muted">환율: ₩{{ exchange_rate.rate|num }}/USD</small>{% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        {% for m in months %}
+        <a href="{% url 'sales:monthly_pnl' m.year m.month %}" class="btn btn-sm {% if m.month == month %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+            {{ m.month }}월
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 월 합계 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-2 col-6">
+        <div class="stat-card text-center">
+            <div class="label">GSV</div>
+            <div class="value" style="font-size:1.1rem">{{ totals.total_gsv|krw }}</div>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="stat-card text-center">
+            <div class="label">매출원가</div>
+            <div class="value" style="font-size:1.1rem">{{ totals.total_cogs|krw }}</div>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="stat-card text-center">
+            <div class="label">비용합계</div>
+            <div class="value" style="font-size:1.1rem">{{ totals.total_expense|krw }}</div>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="stat-card text-center">
+            <div class="label">광고비</div>
+            <div class="value" style="font-size:1.1rem">{{ totals.total_ad|krw }}</div>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="stat-card text-center">
+            <div class="label">운반비</div>
+            <div class="value" style="font-size:1.1rem">{{ totals.total_shipping|krw }}</div>
+        </div>
+    </div>
+    <div class="col-md-2 col-6">
+        <div class="stat-card text-center">
+            <div class="label">영업이익</div>
+            <div class="value {% if totals.total_profit > 0 %}text-profit{% else %}text-loss{% endif %}" style="font-size:1.1rem">
+                {{ totals.total_profit|krw }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 차트 -->
+<div class="card mb-4">
+    <div class="card-header">일별 매출/비용/영업이익 추이</div>
+    <div class="card-body">
+        <canvas id="pnlChart" height="300"></canvas>
+    </div>
+</div>
+
+<!-- 일별 테이블 -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between">
+        <span>전체 일별 손익</span>
+        <span class="badge bg-secondary">{{ daily_data|length }}일</span>
+    </div>
+    <div class="card-body p-0" style="overflow-x:auto">
+        <table class="table table-sm table-hover table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>날짜</th>
+                    <th class="text-end">GMV</th>
+                    <th class="text-end">GSV</th>
+                    <th class="text-end">매출원가</th>
+                    <th class="text-end">비용합계</th>
+                    <th class="text-end">광고비</th>
+                    <th class="text-end">판매수수료</th>
+                    <th class="text-end">운반비</th>
+                    <th class="text-end">영업이익</th>
+                    <th class="text-end">마진율</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for d in daily_data %}
+                <tr>
+                    <td>{{ d.date|date:"m/d" }}</td>
+                    <td class="text-end">{{ d.gmv|num }}</td>
+                    <td class="text-end">{{ d.gsv|num }}</td>
+                    <td class="text-end">{{ d.cogs|num }}</td>
+                    <td class="text-end">{{ d.total_expense|num }}</td>
+                    <td class="text-end">{{ d.performance_ad|num }}</td>
+                    <td class="text-end">{{ d.sales_commission|num }}</td>
+                    <td class="text-end">{{ d.shipping|num }}</td>
+                    <td class="text-end {% if d.operating_profit >= 0 %}text-profit{% else %}text-loss{% endif %}">
+                        {{ d.operating_profit|num }}
+                    </td>
+                    <td class="text-end {% if d.operating_margin >= 0 %}text-profit{% else %}text-loss{% endif %}">
+                        {{ d.operating_margin|pct }}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+fetch('/api/pnl-data/{{ year }}/{{ month }}/')
+.then(r => r.json())
+.then(json => {
+    const data = json.data;
+    new Chart(document.getElementById('pnlChart'), {
+        type: 'bar',
+        data: {
+            labels: data.map(d => d.date.slice(5)),
+            datasets: [
+                { label: 'GSV', data: data.map(d => d.gsv), backgroundColor: 'rgba(37,99,235,0.6)', borderRadius: 3, order: 3 },
+                { label: '비용', data: data.map(d => d.expense), backgroundColor: 'rgba(245,158,11,0.5)', borderRadius: 3, order: 2 },
+                { label: '영업이익', data: data.map(d => d.profit), type: 'line', borderColor: data.map(d => d.profit >= 0 ? '#16a34a' : '#dc2626'), pointBackgroundColor: data.map(d => d.profit >= 0 ? '#16a34a' : '#dc2626'), borderWidth: 2, fill: false, tension: 0.3, order: 1 },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { y: { ticks: { callback: v => '₩' + (v/1000000).toFixed(1) + 'M' } } }
+        }
+    });
+});
+</script>
+{% endblock %}

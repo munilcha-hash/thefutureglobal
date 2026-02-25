@@ -1,0 +1,106 @@
+{% extends 'sales/base.html' %}
+{% load sales_filters %}
+
+{% block title %}채널별 분석{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0">채널별 분석</h4>
+        <small class="text-muted">쇼피파이 / 아마존 / 틱톡샵 일별 매출</small>
+    </div>
+    <select class="form-select form-select-sm" style="width:auto" onchange="location.href='?year={{ year }}&month='+this.value">
+        <option value="0" {% if not month %}selected{% endif %}>전체</option>
+        {% for m in months %}
+        <option value="{{ m.month }}" {% if month == m.month %}selected{% endif %}>{{ m.month }}월</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center">
+            <div class="label"><span class="badge bg-primary">쇼피파이</span></div>
+            <div class="value" style="font-size:1.1rem">{{ totals.shopify|krw }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center">
+            <div class="label"><span class="badge bg-warning text-dark">아마존</span></div>
+            <div class="value" style="font-size:1.1rem">{{ totals.amazon|krw }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center">
+            <div class="label"><span class="badge bg-dark">틱톡샵</span></div>
+            <div class="value" style="font-size:1.1rem">{{ totals.tiktok|krw }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center">
+            <div class="label">GSV (환불 차감)</div>
+            <div class="value" style="font-size:1.1rem">{{ totals.gsv|krw }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">채널별 일별 매출 추이</div>
+    <div class="card-body">
+        <canvas id="channelTrend" height="320"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">일별 채널 상세</div>
+    <div class="card-body p-0" style="overflow-x:auto">
+        <table class="table table-sm table-hover table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>날짜</th>
+                    <th class="text-end">B2C 합계</th>
+                    <th class="text-end">쇼피파이</th>
+                    <th class="text-end">아마존</th>
+                    <th class="text-end">틱톡샵</th>
+                    <th class="text-end">환불 합계</th>
+                    <th class="text-end">GSV</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for d in daily %}
+                <tr>
+                    <td>{{ d.date|date:"m/d" }}</td>
+                    <td class="text-end"><strong>{{ d.b2c_total|num }}</strong></td>
+                    <td class="text-end">{{ d.shopify|num }}</td>
+                    <td class="text-end">{{ d.amazon|num }}</td>
+                    <td class="text-end">{{ d.tiktok|num }}</td>
+                    <td class="text-end text-loss">{{ d.refund_total|num }}</td>
+                    <td class="text-end"><strong>{{ d.gsv|num }}</strong></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const labels = [{% for d in daily %}'{{ d.date|date:"m/d" }}',{% endfor %}];
+new Chart(document.getElementById('channelTrend'), {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [
+            { label: '쇼피파이', data: [{% for d in daily %}{{ d.shopify|default:"0" }},{% endfor %}], borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.3 },
+            { label: '아마존', data: [{% for d in daily %}{{ d.amazon|default:"0" }},{% endfor %}], borderColor: '#f59e0b', tension: 0.3 },
+            { label: '틱톡샵', data: [{% for d in daily %}{{ d.tiktok|default:"0" }},{% endfor %}], borderColor: '#1e293b', tension: 0.3 },
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { ticks: { callback: v => '₩' + (v/1000000).toFixed(1) + 'M' } } }
+    }
+});
+</script>
+{% endblock %}
