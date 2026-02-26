@@ -142,10 +142,13 @@ class Command(BaseCommand):
                             help='플랫폼 (미지정시 파일명에서 자동 감지)')
         parser.add_argument('--clear-date', action='store_true',
                             help='해당 날짜 범위의 기존 데이터 삭제 후 임포트')
+        parser.add_argument('--original-filename', type=str, default=None,
+                            help='원본 파일명 (UUID 임시파일 사용 시 날짜/브랜드 추출용)')
 
     def handle(self, *args, **options):
         file_path = options['file_path']
-        filename = os.path.basename(file_path)
+        # 원본 파일명이 지정되면 그것을 사용, 아니면 실제 파일경로에서 추출
+        filename = options['original_filename'] or os.path.basename(file_path)
 
         platform = options['platform'] or detect_platform(filename)
         if not platform:

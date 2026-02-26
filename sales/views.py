@@ -1,8 +1,11 @@
 import json
+import os
+import uuid
+import traceback
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, Http404
-from django.db.models import Sum, Avg, Count, F
+from django.db.models import Sum, Avg, Count, F, Max
 from django.contrib import messages
 from django.core.management import call_command
 from .models import (
@@ -11,6 +14,31 @@ from .models import (
     ShopeeOrder, Qoo10Order, TaxByState
 )
 from .region_config import REGION_CONFIG, get_region_config
+
+
+def _save_upload(f):
+    """업로드 파일을 안전한 임시 경로에 저장 (한국어 파일명 회피)"""
+    ext = os.path.splitext(f.name)[1].lower()  # .csv, .xlsx 등
+    safe_name = f'upload_{uuid.uuid4().hex[:8]}{ext}'
+    path = f'/tmp/{safe_name}'
+    with open(path, 'wb+') as dest:
+        for chunk in f.chunks():
+            dest.write(chunk)
+    return path
+
+
+def _detect_platform(filename):
+    """파일명에서 플랫폼 자동 감지"""
+    fname = filename.lower()
+    if 'orders_export' in fname or '쇼피파이' in fname or 'shopify' in fname:
+        return 'shopify'
+    if 'all order' in fname or 'all_order' in fname or '틱톡' in fname or 'tiktok' in fname:
+        return 'tiktok'
+    if 'shopee' in fname or 'shop-stats' in fname or '쇼피' in fname:
+        return 'shopee'
+    if 'qoo10' in fname or 'transaction' in fname or '큐텐' in fname:
+        return 'qoo10'
+    return None
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -262,24 +290,34 @@ def upload_excel(request):
     if request.method == 'POST' and request.FILES.get('file'):
         f = request.FILES['file']
         region = request.POST.get('region', 'us')
-        path = f'/tmp/upload_{f.name}'
-        with open(path, 'wb+') as dest:
-            for chunk in f.chunks():
-                dest.write(chunk)
+        original_name = f.name
+        path = _save_upload(f)
 
         # CSV 파일이면 RAW 임포트로 자동 라우팅
-        is_csv = f.name.lower().endswith('.csv')
+        is_csv = original_name.lower().endswith('.csv')
 
         try:
             if is_csv:
-                call_command('import_raw', path, '--clear-date')
-                messages.success(request, f'"{f.name}" RAW 데이터 임포트 완료!')
+                # 원본 파일명에서 플랫폼 자동 감지
+                platform = _detect_platform(original_name)
+                cmd_args = [path, '--clear-date', '--original-filename', original_name]
+                if platform:
+                    cmd_args += ['--platform', platform]
+                call_command('import_raw', *cmd_args)
+                messages.success(request, f'"{original_name}" RAW 데이터 임포트 완료!')
             else:
                 call_command('import_excel', path, '--region', region, '--clear')
                 region_name = get_region_config(region).get('name', region)
-                messages.success(request, f'[{region_name}] "{f.name}" 임포트 완료!')
+                messages.success(request, f'[{region_name}] "{original_name}" 임포트 완료!')
         except Exception as e:
-            messages.error(request, f'임포트 실패: {e}')
+            err_msg = str(e)[:200]
+            messages.error(request, f'임포트 실패: {err_msg}')
+        finally:
+            # 임시 파일 정리
+            try:
+                os.remove(path)
+            except OSError:
+                pass
         return redirect('sales:dashboard')
     return render(request, 'sales/upload.html')
 
@@ -288,16 +326,18 @@ def upload_raw(request):
     """플랫폼별 RAW 파일 업로드 (CSV/Excel)"""
     if request.method == 'POST' and request.FILES.get('file'):
         f = request.FILES['file']
+        original_name = f.name
         platform = request.POST.get('platform', '')
         clear_date = request.POST.get('clear_date') == 'on'
 
-        path = f'/tmp/upload_raw_{f.name}'
-        with open(path, 'wb+') as dest:
-            for chunk in f.chunks():
-                dest.write(chunk)
+        path = _save_upload(f)
 
         try:
-            cmd_args = [path]
+            # 원본 파일명에서 자동 감지 (사용자 미지정 시)
+            if not platform:
+                platform = _detect_platform(original_name) or ''
+
+            cmd_args = [path, '--original-filename', original_name]
             if platform:
                 cmd_args += ['--platform', platform]
             if clear_date:
@@ -310,14 +350,20 @@ def upload_raw(request):
                 'shopee': 'Shopee', 'qoo10': 'Qoo10',
             }
             pname = platform_names.get(platform, '자동감지')
-            messages.success(request, f'[{pname}] "{f.name}" RAW 데이터 임포트 완료!')
+            messages.success(request, f'[{pname}] "{original_name}" RAW 데이터 임포트 완료!')
         except Exception as e:
-            messages.error(request, f'RAW 임포트 실패: {e}')
+            err_msg = str(e)[:200]
+            messages.error(request, f'RAW 임포트 실패: {err_msg}')
+        finally:
+            # 임시 파일 정리
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
         return redirect('sales:upload_raw')
 
     # RAW 데이터 현황
-    from django.db.models import Max
     context = {
         'shopify_count': ShopifyOrder.objects.count(),
         'shopify_latest': ShopifyOrder.objects.aggregate(d=Max('order_date'))['d'],
