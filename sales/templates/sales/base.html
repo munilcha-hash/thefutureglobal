@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}미국사업팀 매출/손익 관리{% endblock %}</title>
+    <title>{% block title %}The Future Global - Sales{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -45,7 +45,6 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Sidebar */
         .sidebar {
             width: var(--sidebar-width);
             height: 100vh;
@@ -95,6 +94,38 @@
             font-weight: 500;
         }
 
+        .region-switcher {
+            display: flex;
+            gap: 2px;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.15);
+        }
+
+        .region-switcher a {
+            flex: 1;
+            text-align: center;
+            padding: 0.4rem 0.25rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+            line-height: 1.3;
+        }
+
+        .region-switcher a:hover {
+            color: var(--text-primary);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .region-switcher a.active {
+            color: #fff;
+            background: var(--gradient-blue);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+
         .nav-section {
             padding: 0.75rem 1rem 0.25rem;
             font-size: 0.65rem;
@@ -130,33 +161,16 @@
 
         .sidebar .nav-link i { font-size: 1rem; width: 20px; text-align: center; }
 
-        /* Main */
         .main-content {
             margin-left: var(--sidebar-width);
             padding: 2rem;
             min-height: 100vh;
         }
 
-        /* Page Header */
-        .page-header {
-            margin-bottom: 1.75rem;
-        }
+        .page-header { margin-bottom: 1.75rem; }
+        .page-header h3 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+        .page-header .subtitle { color: var(--text-muted); font-size: 0.85rem; font-weight: 400; margin-top: 0.25rem; }
 
-        .page-header h3 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            margin: 0;
-        }
-
-        .page-header .subtitle {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            font-weight: 400;
-            margin-top: 0.25rem;
-        }
-
-        /* Stat Cards */
         .stat-card {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
@@ -184,158 +198,48 @@
         }
 
         .stat-card:hover::before { opacity: 1; }
+        .stat-card .label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+        .stat-card .value { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.03em; color: var(--text-primary); }
+        .stat-card .change { font-size: 0.75rem; font-weight: 600; margin-top: 0.35rem; }
+        .stat-card .icon-box { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; margin-bottom: 0.75rem; }
 
-        .stat-card .label {
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-card .value {
-            font-size: 1.35rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            color: var(--text-primary);
-        }
-
-        .stat-card .change {
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-top: 0.35rem;
-        }
-
-        .stat-card .icon-box {
-            width: 40px; height: 40px;
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.1rem;
-            margin-bottom: 0.75rem;
-        }
-
-        /* Cards */
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            overflow: hidden;
-        }
-
-        .card-header {
-            background: transparent;
-            border-bottom: 1px solid var(--border-color);
-            padding: 1rem 1.25rem;
-            font-weight: 700;
-            font-size: 0.9rem;
-            color: var(--text-primary);
-            letter-spacing: -0.01em;
-        }
-
+        .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius); overflow: hidden; }
+        .card-header { background: transparent; border-bottom: 1px solid var(--border-color); padding: 1rem 1.25rem; font-weight: 700; font-size: 0.9rem; color: var(--text-primary); letter-spacing: -0.01em; }
         .card-body { padding: 1.25rem; }
 
-        /* Table */
-        .table {
-            color: var(--text-secondary);
-            font-size: 0.82rem;
-            margin-bottom: 0;
-        }
-
-        .table thead th {
-            background: rgba(255,255,255,0.02);
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 0.06em;
-            border-bottom-color: var(--border-color);
-            padding: 0.7rem 0.75rem;
-        }
-
-        .table td {
-            border-bottom-color: var(--border-color);
-            padding: 0.6rem 0.75rem;
-            vertical-align: middle;
-        }
-
+        .table { color: var(--text-secondary); font-size: 0.82rem; margin-bottom: 0; }
+        .table thead th { background: rgba(255,255,255,0.02); font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.06em; border-bottom-color: var(--border-color); padding: 0.7rem 0.75rem; }
+        .table td { border-bottom-color: var(--border-color); padding: 0.6rem 0.75rem; vertical-align: middle; }
         .table tbody tr:hover { background: rgba(255,255,255,0.02); }
         .table-hover > tbody > tr:hover > * { color: var(--text-primary); }
         .table tbody tr td { background: transparent; }
         .table > :not(caption) > * > * { background-color: transparent; }
 
-        /* Color Utilities */
         .text-profit { color: var(--accent-green) !important; }
         .text-loss { color: var(--accent-red) !important; }
         .text-accent { color: var(--accent-blue) !important; }
         .change.positive { color: var(--accent-green); }
         .change.negative { color: var(--accent-red); }
 
-        /* Badge */
-        .badge-channel {
-            font-size: 0.7rem;
-            padding: 0.3em 0.65em;
-            border-radius: 6px;
-            font-weight: 600;
-        }
-
-        /* Form Controls */
-        .form-select, .form-control {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            border-radius: var(--radius-sm);
-            font-size: 0.85rem;
-        }
-
-        .form-select:focus, .form-control:focus {
-            background: var(--bg-card-hover);
-            border-color: var(--accent-blue);
-            color: var(--text-primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-        }
-
+        .form-select, .form-control { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--radius-sm); font-size: 0.85rem; }
+        .form-select:focus, .form-control:focus { background: var(--bg-card-hover); border-color: var(--accent-blue); color: var(--text-primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
         .form-select option { background: var(--bg-secondary); }
 
-        /* Buttons */
-        .btn-primary {
-            background: var(--gradient-blue);
-            border: none;
-            border-radius: var(--radius-sm);
-            font-weight: 600;
-            font-size: 0.85rem;
-            padding: 0.6rem 1.5rem;
-            transition: all 0.3s;
-        }
+        .btn-primary { background: var(--gradient-blue); border: none; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.85rem; padding: 0.6rem 1.5rem; transition: all 0.3s; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4); }
 
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
-        }
+        .alert { border-radius: var(--radius-sm); border: none; font-size: 0.85rem; }
 
-        /* Alert */
-        .alert {
-            border-radius: var(--radius-sm);
-            border: none;
-            font-size: 0.85rem;
-        }
-
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.1);
-            border-radius: 3px;
-        }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 
-        /* Mobile */
         @media (max-width: 768px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.show { transform: translateX(0); }
             .main-content { margin-left: 0; padding: 1rem; }
         }
 
-        /* Mobile toggle */
         .mobile-toggle {
             display: none;
             position: fixed;
@@ -355,39 +259,37 @@
             .mobile-toggle { display: flex; }
         }
 
-        /* Backdrop */
-        .sidebar-backdrop {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 99;
-        }
-
+        .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
         .sidebar-backdrop.show { display: block; }
 
-        /* Chart.js dark theme */
         canvas { filter: none; }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Mobile Toggle -->
     <button class="mobile-toggle" onclick="toggleSidebar()">
         <i class="bi bi-list"></i>
     </button>
     <div class="sidebar-backdrop" id="backdrop" onclick="toggleSidebar()"></div>
 
-    <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <div class="logo">
                 <div class="logo-icon"><i class="bi bi-bar-chart-fill"></i></div>
                 <div>
                     <h6>The Future Global</h6>
-                    <small>US Sales 2026</small>
+                    <small>Sales 2026</small>
                 </div>
             </div>
+        </div>
+
+        <!-- Region Switcher -->
+        <div class="region-switcher">
+            {% for code, name in all_regions %}
+            <a href="{% url 'sales:set_region' code %}" class="{% if current_region == code %}active{% endif %}">
+                {{ code|upper }}
+            </a>
+            {% endfor %}
         </div>
 
         <ul class="nav flex-column mt-2">
@@ -409,36 +311,34 @@
             {% endfor %}
             {% endif %}
 
+            {% if region_config.brands %}
             <div class="nav-section mt-2">Brands</div>
             {% with first_month=months|first %}
+            {% for brand_info in region_config.brands %}
             <li class="nav-item">
-                <a class="nav-link" href="{% if first_month %}{% url 'sales:brand_detail' 'doctorblet' first_month.year first_month.month %}{% else %}{% url 'sales:upload_excel' %}{% endif %}">
-                    <i class="bi bi-hexagon-fill"></i> 닥터블릿
+                <a class="nav-link" href="{% if first_month %}{% url 'sales:brand_detail' brand_info.0 first_month.year first_month.month %}{% else %}{% url 'sales:upload_excel' %}{% endif %}">
+                    <i class="bi bi-hexagon-fill"></i> {{ brand_info.2 }}
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{% if first_month %}{% url 'sales:brand_detail' 'calo' first_month.year first_month.month %}{% else %}{% url 'sales:upload_excel' %}{% endif %}">
-                    <i class="bi bi-hexagon-fill"></i> Calo
-                </a>
-            </li>
+            {% endfor %}
             {% endwith %}
+            {% endif %}
 
+            {% if order_pages %}
             <div class="nav-section mt-2">Channels</div>
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'channel_analysis' %}active{% endif %}" href="{% url 'sales:channel_analysis' %}">
                     <i class="bi bi-diagram-3-fill"></i> 채널 분석
                 </a>
             </li>
+            {% for page in order_pages %}
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'shopify_orders' %}active{% endif %}" href="{% url 'sales:shopify_orders' %}">
-                    <i class="bi bi-bag-fill"></i> Shopify 주문
+                <a class="nav-link {% if request.resolver_match.url_name == page.url_name %}active{% endif %}" href="{{ page.url }}">
+                    <i class="bi {{ page.icon }}"></i> {{ page.label }}
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'tiktok_orders' %}active{% endif %}" href="{% url 'sales:tiktok_orders' %}">
-                    <i class="bi bi-tiktok"></i> TikTok 주문
-                </a>
-            </li>
+            {% endfor %}
+            {% endif %}
 
             <div class="nav-section mt-2">Settings</div>
             <li class="nav-item">
@@ -446,10 +346,14 @@
                     <i class="bi bi-cloud-arrow-up-fill"></i> 데이터 업로드
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'upload_raw' %}active{% endif %}" href="{% url 'sales:upload_raw' %}">
+                    <i class="bi bi-file-earmark-arrow-up-fill"></i> RAW 업로드
+                </a>
+            </li>
         </ul>
     </nav>
 
-    <!-- Main Content -->
     <main class="main-content">
         {% if messages %}
         {% for message in messages %}
@@ -470,7 +374,6 @@
             document.getElementById('backdrop').classList.toggle('show');
         }
 
-        // Chart.js global dark theme
         Chart.defaults.color = '#8888aa';
         Chart.defaults.borderColor = 'rgba(255,255,255,0.04)';
         Chart.defaults.plugins.legend.labels.usePointStyle = true;

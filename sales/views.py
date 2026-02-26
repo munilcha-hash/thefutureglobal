@@ -7,8 +7,10 @@ from django.contrib import messages
 from django.core.management import call_command
 from .models import (
     ExchangeRate, Brand, DailySalesTotal, DailySalesB2B,
-    DailySalesB2C, BrandDailySales, ShopifyOrder, TiktokOrder, TaxByState
+    DailySalesB2C, BrandDailySales, ShopifyOrder, TiktokOrder,
+    ShopeeOrder, Qoo10Order, TaxByState
 )
+from .region_config import REGION_CONFIG, get_region_config
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -18,18 +20,31 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def _get_available_months():
-    months = DailySalesTotal.objects.values('year', 'month').distinct().order_by('year', 'month')
+def _get_current_region(request):
+    return request.session.get('current_region', 'us')
+
+
+def _get_available_months(region):
+    months = DailySalesTotal.objects.filter(region=region).values('year', 'month').distinct().order_by('year', 'month')
     return list(months)
+
+
+def set_region(request, region):
+    """지역 전환"""
+    if region in REGION_CONFIG:
+        request.session['current_region'] = region
+    return redirect('sales:dashboard')
 
 
 def dashboard(request):
     """메인 대시보드"""
-    months = _get_available_months()
+    region = _get_current_region(request)
+    config = get_region_config(region)
+    months = _get_available_months(region)
     selected_year = int(request.GET.get('year', 2026))
-    selected_month = int(request.GET.get('month', 0))  # 0 = 전체
+    selected_month = int(request.GET.get('month', 0))
 
-    qs = DailySalesTotal.objects.filter(year=selected_year)
+    qs = DailySalesTotal.objects.filter(year=selected_year, region=region)
     if selected_month:
         qs = qs.filter(month=selected_month)
 
@@ -47,17 +62,20 @@ def dashboard(request):
         avg_margin=Avg('operating_margin'),
     )
 
-    # B2C 채널별
-    b2c_qs = DailySalesB2C.objects.filter(year=selected_year)
+    # B2C 채널별 - 동적 집계
+    b2c_qs = DailySalesB2C.objects.filter(year=selected_year, region=region)
     if selected_month:
         b2c_qs = b2c_qs.filter(month=selected_month)
-    channel_totals = b2c_qs.aggregate(
-        shopify=Sum('shopify'), amazon=Sum('amazon'), tiktok=Sum('tiktok'),
-        refund=Sum('refund_total'),
-    )
+
+    channel_fields = config.get('channel_fields', [])
+    channel_agg = {}
+    for field in channel_fields:
+        channel_agg[field] = Sum(field)
+    channel_agg['refund'] = Sum('refund_total')
+    channel_totals = b2c_qs.aggregate(**channel_agg)
 
     # 브랜드별
-    brand_qs = BrandDailySales.objects.filter(year=selected_year)
+    brand_qs = BrandDailySales.objects.filter(year=selected_year, region=region)
     if selected_month:
         brand_qs = brand_qs.filter(month=selected_month)
     brand_totals = brand_qs.values('brand__name_kr').annotate(
@@ -69,9 +87,11 @@ def dashboard(request):
     exchange_rate = None
     if selected_month:
         try:
-            exchange_rate = ExchangeRate.objects.get(year=selected_year, month=selected_month)
+            exchange_rate = ExchangeRate.objects.get(year=selected_year, month=selected_month, region=region)
         except ExchangeRate.DoesNotExist:
             pass
+
+    channels = config.get('channels', {})
 
     context = {
         'months': months,
@@ -81,15 +101,18 @@ def dashboard(request):
         'channel_totals': channel_totals,
         'brand_totals': brand_totals,
         'exchange_rate': exchange_rate,
+        'channels': channels,
+        'channel_fields': channel_fields,
     }
     return render(request, 'sales/dashboard.html', context)
 
 
 def monthly_pnl(request, year, month):
     """월별 손익관리"""
-    daily_data = DailySalesTotal.objects.filter(year=year, month=month).order_by('date')
-    b2c_data = DailySalesB2C.objects.filter(year=year, month=month).order_by('date')
-    b2b_data = DailySalesB2B.objects.filter(year=year, month=month).order_by('date')
+    region = _get_current_region(request)
+    daily_data = DailySalesTotal.objects.filter(year=year, month=month, region=region).order_by('date')
+    b2c_data = DailySalesB2C.objects.filter(year=year, month=month, region=region).order_by('date')
+    b2b_data = DailySalesB2B.objects.filter(year=year, month=month, region=region).order_by('date')
 
     totals = daily_data.aggregate(
         total_gmv=Sum('gmv'), total_gsv=Sum('gsv'), total_cogs=Sum('cogs'),
@@ -99,7 +122,7 @@ def monthly_pnl(request, year, month):
     )
 
     try:
-        exchange_rate = ExchangeRate.objects.get(year=year, month=month)
+        exchange_rate = ExchangeRate.objects.get(year=year, month=month, region=region)
     except ExchangeRate.DoesNotExist:
         exchange_rate = None
 
@@ -110,55 +133,69 @@ def monthly_pnl(request, year, month):
         'b2b_data': b2b_data,
         'totals': totals,
         'exchange_rate': exchange_rate,
-        'months': _get_available_months(),
+        'months': _get_available_months(region),
     }
     return render(request, 'sales/monthly_pnl.html', context)
 
 
 def brand_detail(request, brand_code, year, month):
     """브랜드별 상세"""
-    brand = get_object_or_404(Brand, code=brand_code)
-    daily = BrandDailySales.objects.filter(brand=brand, year=year, month=month).order_by('date')
+    region = _get_current_region(request)
+    brand = get_object_or_404(Brand, code=brand_code, region=region)
+    daily = BrandDailySales.objects.filter(brand=brand, year=year, month=month, region=region).order_by('date')
     totals = daily.aggregate(
         total_gsv=Sum('total_gsv'), total_b2c=Sum('b2c_total'),
         total_b2b=Sum('b2b_total'), total_refund=Sum('refund_total'),
-        total_ad_shopify=Sum('ad_shopify'), total_ad_amazon=Sum('ad_amazon'),
-        total_ad_tiktok=Sum('ad_tiktok'),
     )
+
+    config = get_region_config(region)
+    channels = config.get('channels', {})
 
     context = {
         'brand': brand, 'year': year, 'month': month,
         'daily': daily, 'totals': totals,
-        'months': _get_available_months(),
+        'months': _get_available_months(region),
+        'channels': channels,
     }
     return render(request, 'sales/brand_detail.html', context)
 
 
 def channel_analysis(request):
     """채널별 분석"""
+    region = _get_current_region(request)
+    config = get_region_config(region)
     year = int(request.GET.get('year', 2026))
     month = int(request.GET.get('month', 0))
 
-    b2c_qs = DailySalesB2C.objects.filter(year=year)
+    b2c_qs = DailySalesB2C.objects.filter(year=year, region=region)
     if month:
         b2c_qs = b2c_qs.filter(month=month)
 
     daily = b2c_qs.order_by('date')
-    totals = b2c_qs.aggregate(
-        shopify=Sum('shopify'), amazon=Sum('amazon'), tiktok=Sum('tiktok'),
-        refund=Sum('refund_total'), gsv=Sum('gsv'),
-    )
+
+    channel_fields = config.get('channel_fields', [])
+    channel_agg = {}
+    for field in channel_fields:
+        channel_agg[field] = Sum(field)
+    channel_agg['refund'] = Sum('refund_total')
+    channel_agg['gsv'] = Sum('gsv')
+    totals = b2c_qs.aggregate(**channel_agg)
+
+    channels = config.get('channels', {})
 
     context = {
-        'year': year, 'month': month, 'daily': daily, 'totals': totals,
-        'months': _get_available_months(),
+        'year': year, 'month': month,
+        'daily': daily, 'totals': totals,
+        'months': _get_available_months(region),
+        'channels': channels,
+        'channel_fields': channel_fields,
     }
     return render(request, 'sales/channel_analysis.html', context)
 
 
 def shopify_orders(request):
     """쇼피파이 주문 목록"""
-    orders = ShopifyOrder.objects.all()
+    orders = ShopifyOrder.objects.filter(region='us')
     brand = request.GET.get('brand')
     if brand:
         orders = orders.filter(brand=brand)
@@ -166,7 +203,7 @@ def shopify_orders(request):
     context = {
         'orders': orders[:500],
         'total_count': orders.count(),
-        'brands': ShopifyOrder.objects.values_list('brand', flat=True).distinct(),
+        'brands': ShopifyOrder.objects.filter(region='us').values_list('brand', flat=True).distinct(),
         'selected_brand': brand,
     }
     return render(request, 'sales/shopify_orders.html', context)
@@ -174,7 +211,7 @@ def shopify_orders(request):
 
 def tiktok_orders(request):
     """틱톡 주문 목록"""
-    orders = TiktokOrder.objects.all()
+    orders = TiktokOrder.objects.filter(region='us')
     brand = request.GET.get('brand')
     if brand:
         orders = orders.filter(brand=brand)
@@ -182,44 +219,132 @@ def tiktok_orders(request):
     context = {
         'orders': orders[:500],
         'total_count': orders.count(),
-        'brands': TiktokOrder.objects.values_list('brand', flat=True).distinct(),
+        'brands': TiktokOrder.objects.filter(region='us').values_list('brand', flat=True).distinct(),
         'selected_brand': brand,
     }
     return render(request, 'sales/tiktok_orders.html', context)
 
 
+def shopee_orders(request):
+    """쇼피 주문 목록 (China)"""
+    orders = ShopeeOrder.objects.filter(region='cn')
+    brand = request.GET.get('brand')
+    if brand:
+        orders = orders.filter(brand=brand)
+
+    context = {
+        'orders': orders[:500],
+        'total_count': orders.count(),
+        'brands': ShopeeOrder.objects.filter(region='cn').values_list('brand', flat=True).distinct(),
+        'selected_brand': brand,
+    }
+    return render(request, 'sales/shopee_orders.html', context)
+
+
+def qoo10_orders(request):
+    """큐텐 주문 목록 (Japan)"""
+    orders = Qoo10Order.objects.filter(region='jp')
+    brand = request.GET.get('brand')
+    if brand:
+        orders = orders.filter(brand=brand)
+
+    context = {
+        'orders': orders[:500],
+        'total_count': orders.count(),
+        'brands': Qoo10Order.objects.filter(region='jp').values_list('brand', flat=True).distinct(),
+        'selected_brand': brand,
+    }
+    return render(request, 'sales/qoo10_orders.html', context)
+
+
 def upload_excel(request):
-    """엑셀 파일 업로드"""
+    """엑셀/CSV 파일 업로드"""
     if request.method == 'POST' and request.FILES.get('file'):
         f = request.FILES['file']
+        region = request.POST.get('region', 'us')
         path = f'/tmp/upload_{f.name}'
         with open(path, 'wb+') as dest:
             for chunk in f.chunks():
                 dest.write(chunk)
+
+        # CSV 파일이면 RAW 임포트로 자동 라우팅
+        is_csv = f.name.lower().endswith('.csv')
+
         try:
-            call_command('import_excel', path, '--clear')
-            messages.success(request, f'"{f.name}" 임포트 완료!')
+            if is_csv:
+                call_command('import_raw', path, '--clear-date')
+                messages.success(request, f'"{f.name}" RAW 데이터 임포트 완료!')
+            else:
+                call_command('import_excel', path, '--region', region, '--clear')
+                region_name = get_region_config(region).get('name', region)
+                messages.success(request, f'[{region_name}] "{f.name}" 임포트 완료!')
         except Exception as e:
             messages.error(request, f'임포트 실패: {e}')
         return redirect('sales:dashboard')
     return render(request, 'sales/upload.html')
 
 
+def upload_raw(request):
+    """플랫폼별 RAW 파일 업로드 (CSV/Excel)"""
+    if request.method == 'POST' and request.FILES.get('file'):
+        f = request.FILES['file']
+        platform = request.POST.get('platform', '')
+        clear_date = request.POST.get('clear_date') == 'on'
+
+        path = f'/tmp/upload_raw_{f.name}'
+        with open(path, 'wb+') as dest:
+            for chunk in f.chunks():
+                dest.write(chunk)
+
+        try:
+            cmd_args = [path]
+            if platform:
+                cmd_args += ['--platform', platform]
+            if clear_date:
+                cmd_args.append('--clear-date')
+
+            call_command('import_raw', *cmd_args)
+
+            platform_names = {
+                'shopify': 'Shopify', 'tiktok': 'TikTok',
+                'shopee': 'Shopee', 'qoo10': 'Qoo10',
+            }
+            pname = platform_names.get(platform, '자동감지')
+            messages.success(request, f'[{pname}] "{f.name}" RAW 데이터 임포트 완료!')
+        except Exception as e:
+            messages.error(request, f'RAW 임포트 실패: {e}')
+
+        return redirect('sales:upload_raw')
+
+    # RAW 데이터 현황
+    from django.db.models import Max
+    context = {
+        'shopify_count': ShopifyOrder.objects.count(),
+        'shopify_latest': ShopifyOrder.objects.aggregate(d=Max('order_date'))['d'],
+        'tiktok_count': TiktokOrder.objects.count(),
+        'tiktok_latest': TiktokOrder.objects.aggregate(d=Max('order_date'))['d'],
+        'shopee_count': ShopeeOrder.objects.count(),
+        'shopee_latest': ShopeeOrder.objects.aggregate(d=Max('order_date'))['d'],
+        'qoo10_count': Qoo10Order.objects.count(),
+        'qoo10_latest': Qoo10Order.objects.aggregate(d=Max('order_date'))['d'],
+    }
+    return render(request, 'sales/upload_raw.html', context)
+
+
 def api_dashboard_data(request):
     """대시보드 차트 데이터 API"""
+    region = _get_current_region(request)
     year = int(request.GET.get('year', 2026))
 
-    # 월별 집계
-    monthly = DailySalesTotal.objects.filter(year=year).values('month').annotate(
+    monthly = DailySalesTotal.objects.filter(year=year, region=region).values('month').annotate(
         gsv=Sum('gsv'), cogs=Sum('cogs'), expense=Sum('total_expense'),
         profit=Sum('operating_profit'), ad=Sum('performance_ad'),
     ).order_by('month')
 
-    # 일별 데이터 (선택된 월)
     month = int(request.GET.get('month', 0))
     daily = []
     if month:
-        daily_qs = DailySalesTotal.objects.filter(year=year, month=month).order_by('date')
+        daily_qs = DailySalesTotal.objects.filter(year=year, month=month, region=region).order_by('date')
         daily = [
             {'date': str(d.date), 'gsv': d.gsv, 'profit': d.operating_profit,
              'expense': d.total_expense, 'ad': d.performance_ad}
@@ -234,7 +359,8 @@ def api_dashboard_data(request):
 
 def api_pnl_data(request, year, month):
     """손익 차트 데이터 API"""
-    daily = DailySalesTotal.objects.filter(year=year, month=month).order_by('date')
+    region = _get_current_region(request)
+    daily = DailySalesTotal.objects.filter(year=year, month=month, region=region).order_by('date')
     data = [
         {
             'date': str(d.date),

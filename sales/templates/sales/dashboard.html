@@ -7,7 +7,7 @@
 <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div>
         <h3>Dashboard</h3>
-        <div class="subtitle">{{ selected_year }}년 {% if selected_month %}{{ selected_month }}월{% else %}전체{% endif %} 매출/손익 현황</div>
+        <div class="subtitle">{{ region_config.flag }} {{ region_config.name }} &middot; {{ selected_year }}년 {% if selected_month %}{{ selected_month }}월{% else %}전체{% endif %} 매출/손익 현황</div>
     </div>
     <div class="d-flex gap-2 align-items-center">
         <select class="form-select form-select-sm" style="width:auto" onchange="location.href='?year={{ selected_year }}&month='+this.value">
@@ -118,18 +118,12 @@
             <div class="card-body">
                 <canvas id="channelChart" height="240"></canvas>
                 <div class="mt-3" style="display:flex;flex-direction:column;gap:0.5rem;">
+                    {% for field, label in channels.items %}
                     <div class="d-flex justify-content-between align-items-center">
-                        <span style="font-size:0.8rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#6366f1;margin-right:6px;"></span>Shopify</span>
-                        <span style="font-size:0.8rem;font-weight:600;">{{ channel_totals.shopify|krw }}</span>
+                        <span style="font-size:0.8rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent-blue);margin-right:6px;"></span>{{ label }}</span>
+                        <span style="font-size:0.8rem;font-weight:600;">{% with val=channel_totals|default_if_none:"" %}{{ channel_totals|default:"" }}{% endwith %}</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span style="font-size:0.8rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f59e0b;margin-right:6px;"></span>Amazon</span>
-                        <span style="font-size:0.8rem;font-weight:600;">{{ channel_totals.amazon|krw }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span style="font-size:0.8rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#8b5cf6;margin-right:6px;"></span>TikTok</span>
-                        <span style="font-size:0.8rem;font-weight:600;">{{ channel_totals.tiktok|krw }}</span>
-                    </div>
+                    {% endfor %}
                     <div class="d-flex justify-content-between align-items-center" style="padding-top:0.35rem;border-top:1px solid var(--border-color);">
                         <span style="font-size:0.8rem;color:var(--accent-red)"><i class="bi bi-arrow-return-left"></i> 환불</span>
                         <span style="font-size:0.8rem;font-weight:600;color:var(--accent-red)">{{ channel_totals.refund|krw }}</span>
@@ -246,30 +240,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Channel Doughnut
-    const channelData = {
-        shopify: {{ channel_totals.shopify|default:"0" }},
-        amazon: {{ channel_totals.amazon|default:"0" }},
-        tiktok: {{ channel_totals.tiktok|default:"0" }},
-    };
-    new Chart(document.getElementById('channelChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Shopify', 'Amazon', 'TikTok'],
-            datasets: [{
-                data: [channelData.shopify, channelData.amazon, channelData.tiktok],
-                backgroundColor: ['#6366f1', '#f59e0b', '#8b5cf6'],
-                borderWidth: 0,
-                hoverOffset: 8,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            cutout: '70%',
-        }
-    });
+    // Channel Doughnut - dynamic based on region
+    const channelColors = ['#6366f1', '#f59e0b', '#8b5cf6', '#22c55e', '#06b6d4'];
+    const channelLabels = [{% for field, label in channels.items %}'{{ label }}',{% endfor %}];
+    const channelData = [{% for field in channel_fields %}{{ channel_totals|default:"{}"|default:"0" }},{% endfor %}];
+
+    // Build channel data array from template
+    const channelValues = [];
+    {% for field in channel_fields %}
+    channelValues.push({{ channel_totals|default:"{}" }});
+    {% endfor %}
+
+    if (channelLabels.length > 0) {
+        new Chart(document.getElementById('channelChart'), {
+            type: 'doughnut',
+            data: {
+                labels: channelLabels,
+                datasets: [{
+                    data: channelValues.length > 0 ? channelValues : [0],
+                    backgroundColor: channelColors.slice(0, channelLabels.length),
+                    borderWidth: 0,
+                    hoverOffset: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                cutout: '70%',
+            }
+        });
+    }
 
     // Brand Chart
     const brandLabels = [{% for b in brand_totals %}'{{ b.brand__name_kr }}',{% endfor %}];
@@ -282,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'GSV',
                     data: brandGSV,
-                    backgroundColor: ['#6366f1', '#8b5cf6', '#f59e0b', '#22c55e'],
+                    backgroundColor: ['#6366f1', '#8b5cf6', '#f59e0b', '#22c55e', '#06b6d4'],
                     borderRadius: 8,
                     barThickness: 32,
                 }]

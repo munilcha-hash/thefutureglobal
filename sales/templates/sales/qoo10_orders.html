@@ -1,0 +1,53 @@
+{% extends 'sales/base.html' %}
+{% load sales_filters %}
+
+{% block title %}Qoo10 Orders - The Future Global{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+        <h3>Qoo10 Orders</h3>
+        <div class="subtitle">총 {{ total_count }}건{% if selected_brand %} &middot; {{ selected_brand }}{% endif %}</div>
+    </div>
+    <select class="form-select form-select-sm" style="width:auto" onchange="location.href='?brand='+this.value">
+        <option value="">전체 브랜드</option>
+        {% for b in brands %}<option value="{{ b }}" {% if selected_brand == b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+    </select>
+</div>
+
+<div class="card">
+    <div class="card-body p-0" style="overflow-x:auto">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>날짜</th><th>브랜드</th><th>주문ID</th><th>상태</th>
+                    <th class="text-end">금액</th><th>상품명</th><th>SKU</th>
+                    <th class="text-end">수량</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for o in orders %}
+                <tr>
+                    <td style="color:var(--text-primary);font-weight:500;">{{ o.order_date|date:"m/d" }}</td>
+                    <td><span style="background:rgba(139,92,246,0.1);color:var(--accent-purple);padding:0.15rem 0.5rem;border-radius:5px;font-size:0.75rem;font-weight:600;">{{ o.brand }}</span></td>
+                    <td style="font-size:0.73rem;color:var(--text-muted)">{{ o.order_id }}</td>
+                    <td>
+                        {% if o.order_status == 'Completed' %}
+                        <span style="background:rgba(34,197,94,0.1);color:var(--accent-green);padding:0.15rem 0.5rem;border-radius:5px;font-size:0.73rem;font-weight:600;">{{ o.order_status }}</span>
+                        {% else %}
+                        <span style="background:rgba(245,158,11,0.1);color:var(--accent-amber);padding:0.15rem 0.5rem;border-radius:5px;font-size:0.73rem;font-weight:600;">{{ o.order_status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end" style="font-weight:600;color:var(--text-primary)">{{ o.final_amount|usd }}</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.product_name }}</td>
+                    <td style="font-size:0.78rem;color:var(--text-muted)">{{ o.seller_sku }}</td>
+                    <td class="text-end">{{ o.quantity }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="8" class="text-center py-4" style="color:var(--text-muted)"><i class="bi bi-inbox" style="font-size:1.5rem;display:block;margin-bottom:0.5rem;"></i>주문 데이터가 없습니다</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
