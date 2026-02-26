@@ -1,15 +1,17 @@
 """
 플랫폼별 RAW 데이터 파일(CSV/Excel)을 DB로 임포트하는 관리 커맨드.
 파일명에서 플랫폼을 자동 감지하거나 --platform으로 지정 가능.
-bulk_create 사용으로 대용량 파일도 빠르게 처리.
+
+CSV는 Python csv 모듈(경량), Excel은 openpyxl(경량)만 사용 - pandas 미사용.
+bulk_create로 대용량도 빠르게 처리.
 
 Usage:
   python manage.py import_raw path/to/file.csv
   python manage.py import_raw path/to/file.xlsx --platform shopee
 """
+import csv
 import os
 import re
-import pandas as pd
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, date
 from django.core.management.base import BaseCommand
@@ -20,7 +22,7 @@ BATCH_SIZE = 500
 
 
 def safe_decimal(val, default=0):
-    if pd.isna(val) or val is None or val == '' or val == '-':
+    if val is None or val == '' or val == '-':
         return Decimal(str(default)) if default is not None else None
     try:
         cleaned = str(val).replace(',', '').replace('$', '').replace('\t', '').strip()
@@ -32,13 +34,13 @@ def safe_decimal(val, default=0):
 
 
 def safe_str(val, default=''):
-    if pd.isna(val) or val is None:
+    if val is None:
         return default
     return str(val).replace('\t', '').strip()
 
 
 def safe_int(val, default=0):
-    if pd.isna(val) or val is None:
+    if val is None or val == '':
         return default
     try:
         return int(float(str(val).replace(',', '').replace('\t', '').strip()))
@@ -48,7 +50,7 @@ def safe_int(val, default=0):
 
 def safe_date(val):
     """다양한 날짜 형식 파싱"""
-    if pd.isna(val) or val is None:
+    if val is None:
         return None
     if isinstance(val, (datetime, date)):
         if isinstance(val, datetime):
@@ -66,9 +68,8 @@ def safe_date(val):
         '%d-%m-%Y %H:%M',
         '%d-%m-%Y',
     ]
-    # 시간대 정보 제거 후 파싱
+    # 시간대 정보 제거
     clean = s.split('+')[0].strip()
-    # -0500 같은 UTC 오프셋 제거
     clean = re.sub(r'\s*-\d{4}$', '', clean)
     for fmt in formats:
         try:
@@ -104,28 +105,38 @@ def extract_date_from_filename(filename):
 
 
 def extract_brand_from_shopee_filename(filename):
-    """Shopee 파일명에서 브랜드 추출 (e.g., drblet.sg.shopee → drblet)"""
+    """Shopee 파일명에서 브랜드 추출"""
     match = re.search(r'_([a-zA-Z]+)\.\w+\.shopee', filename)
     if match:
         brand = match.group(1)
         brand_mapping = {
-            'drblet': '닥터블릿',
-            'doctorblet': '닥터블릿',
-            'eoa': 'EOA',
-            'nothingviral': '낫띵베럴',
-            'nothingbetter': '낫띵베럴',
-            'tetracure': '테트라큐어',
-            'calo': 'Calo',
+            'drblet': '닥터블릿', 'doctorblet': '닥터블릿',
+            'eoa': 'EOA', 'nothingviral': '낫띵베럴',
+            'nothingbetter': '낫띵베럴', 'tetracure': '테트라큐어', 'calo': 'Calo',
         }
         return brand_mapping.get(brand.lower(), brand)
     return ''
+
+
+def _read_csv_rows(file_path):
+    """CSV를 경량으로 읽기 (pandas 미사용). 헤더→dict 리스트 반환."""
+    rows = []
+    # BOM 처리를 위해 utf-8-sig
+    with open(file_path, 'r', encoding='utf-8-sig') as f:
+        reader = csv.DictReader(f)
+        # 헤더 탭 제거
+        if reader.fieldnames:
+            reader.fieldnames = [h.replace('\t', '').strip() for h in reader.fieldnames]
+        for row in reader:
+            rows.append(row)
+    return rows
 
 
 class Command(BaseCommand):
     help = '플랫폼별 RAW 데이터 파일(CSV/Excel)을 DB로 임포트'
 
     def add_arguments(self, parser):
-        parser.add_argument('file_path', type=str, help='RAW 데이터 파일 경로 (.csv 또는 .xlsx)')
+        parser.add_argument('file_path', type=str, help='RAW 데이터 파일 경로')
         parser.add_argument('--platform', type=str, default=None,
                             choices=['shopify', 'tiktok', 'shopee', 'qoo10'],
                             help='플랫폼 (미지정시 파일명에서 자동 감지)')
@@ -146,26 +157,30 @@ class Command(BaseCommand):
 
         self.stdout.write(f"플랫폼: {platform.upper()} | 파일: {filename}")
 
-        if platform == 'shopify':
-            self._import_shopify_csv(file_path, options['clear_date'])
-        elif platform == 'tiktok':
-            self._import_tiktok_csv(file_path, options['clear_date'])
-        elif platform == 'shopee':
-            self._import_shopee_excel(file_path, filename, options['clear_date'])
-        elif platform == 'qoo10':
-            self._import_qoo10_excel(file_path, filename, options['clear_date'])
+        try:
+            if platform == 'shopify':
+                self._import_shopify_csv(file_path, options['clear_date'])
+            elif platform == 'tiktok':
+                self._import_tiktok_csv(file_path, options['clear_date'])
+            elif platform == 'shopee':
+                self._import_shopee_excel(file_path, filename, options['clear_date'])
+            elif platform == 'qoo10':
+                self._import_qoo10_excel(file_path, filename, options['clear_date'])
+        except Exception as e:
+            self.stderr.write(self.style.ERROR(f"임포트 오류: {e}"))
+            raise
 
         self.stdout.write(self.style.SUCCESS(f"[{platform.upper()}] RAW 임포트 완료!"))
 
     @transaction.atomic
     def _import_shopify_csv(self, file_path, clear_date):
-        """Shopify orders_export CSV 임포트 (bulk_create)"""
-        df = pd.read_csv(file_path, dtype=str, keep_default_na=False)
-        self.stdout.write(f"  Shopify CSV: {len(df)}행 로드됨")
+        """Shopify orders_export CSV 임포트"""
+        rows = _read_csv_rows(file_path)
+        self.stdout.write(f"  Shopify CSV: {len(rows)}행 로드됨")
 
-        # 날짜 범위 파악 & 기존 데이터 삭제
+        # 날짜 범위 파악
         dates = []
-        for _, row in df.iterrows():
+        for row in rows:
             d = safe_date(row.get('Paid at') or row.get('Created at'))
             if d:
                 dates.append(d)
@@ -178,7 +193,7 @@ class Command(BaseCommand):
             self.stdout.write(f"  기존 데이터 {deleted}건 삭제 ({min_d} ~ {max_d})")
 
         objects = []
-        for _, row in df.iterrows():
+        for row in rows:
             order_date = safe_date(row.get('Paid at') or row.get('Created at'))
             if not order_date:
                 continue
@@ -190,12 +205,11 @@ class Command(BaseCommand):
 
             total = safe_decimal(row.get('Total'), None)
             subtotal = safe_decimal(row.get('Subtotal'), None)
-            final_amount = total if total is not None else subtotal
 
             objects.append(ShopifyOrder(
                 region='us',
                 brand=brand,
-                final_amount=final_amount,
+                final_amount=total if total is not None else subtotal,
                 order_date=order_date,
                 order_name=name,
                 email=safe_str(row.get('Email', '')),
@@ -221,16 +235,13 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def _import_tiktok_csv(self, file_path, clear_date):
-        """TikTok All order CSV 임포트 (bulk_create)"""
-        df = pd.read_csv(file_path, dtype=str, keep_default_na=False, encoding='utf-8-sig')
-        self.stdout.write(f"  TikTok CSV: {len(df)}행 로드됨")
+        """TikTok All order CSV 임포트"""
+        rows = _read_csv_rows(file_path)
+        self.stdout.write(f"  TikTok CSV: {len(rows)}행 로드됨")
 
-        # 컬럼명 정리 (탭 문자 제거)
-        df.columns = [c.replace('\t', '').strip() for c in df.columns]
-
-        # 날짜 범위 파악 & 기존 데이터 삭제
+        # 날짜 범위 파악
         dates = []
-        for _, row in df.iterrows():
+        for row in rows:
             d = safe_date(row.get('Created Time') or row.get('Paid Time'))
             if d:
                 dates.append(d)
@@ -252,7 +263,7 @@ class Command(BaseCommand):
             return ''
 
         objects = []
-        for _, row in df.iterrows():
+        for row in rows:
             order_date = safe_date(row.get('Created Time') or row.get('Paid Time'))
             if not order_date:
                 continue
@@ -261,19 +272,15 @@ class Command(BaseCommand):
             if not order_id:
                 continue
 
-            brand = detect_tiktok_brand(row)
-            cancel_time = safe_date(row.get('Cancelled Time'))
-
             sku_subtotal = safe_decimal(row.get('SKU Subtotal After Discount'), None)
             order_amount = safe_decimal(row.get('Order Amount'), None)
-            final_amount = sku_subtotal if sku_subtotal is not None else order_amount
 
             objects.append(TiktokOrder(
                 region='us',
-                brand=brand,
-                final_amount=final_amount,
+                brand=detect_tiktok_brand(row),
+                final_amount=sku_subtotal if sku_subtotal is not None else order_amount,
                 order_date=order_date,
-                cancel_date=cancel_time,
+                cancel_date=safe_date(row.get('Cancelled Time')),
                 order_id=order_id,
                 order_status=safe_str(row.get('Order Status', '')),
                 seller_sku=safe_str(row.get('Seller SKU', '')),
@@ -292,7 +299,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def _import_shopee_excel(self, file_path, filename, clear_date):
-        """Shopee shop-stats Excel 임포트 (일별 집계 + 상품별)"""
+        """Shopee shop-stats Excel 임포트"""
         import openpyxl
         wb = openpyxl.load_workbook(file_path, data_only=True)
         self.stdout.write(f"  Shopee Excel 시트: {wb.sheetnames}")
@@ -310,7 +317,6 @@ class Command(BaseCommand):
         order_date = file_date
         objects = []
 
-        # 1) Placed Order 시트에서 일별 집계 임포트
         if 'Placed Order' in wb.sheetnames:
             ws = wb['Placed Order']
             date_str = str(ws.cell(2, 1).value or '')
@@ -327,21 +333,14 @@ class Command(BaseCommand):
 
             if order_date and (daily_sales or daily_orders):
                 objects.append(ShopeeOrder(
-                    region='cn',
-                    brand=brand,
-                    final_amount=daily_sales,
-                    order_date=order_date,
-                    order_id=f'DAILY-{order_date}',
+                    region='cn', brand=brand, final_amount=daily_sales,
+                    order_date=order_date, order_id=f'DAILY-{order_date}',
                     order_status='Daily Summary',
                     product_name=f'일별 집계 (주문 {daily_orders}건, 방문자 {daily_visitors}명)',
-                    quantity=daily_orders,
-                    order_amount=daily_sales,
-                    refund_amount=refunded_sales,
-                    buyer_country='SG',
+                    quantity=daily_orders, order_amount=daily_sales,
+                    refund_amount=refunded_sales, buyer_country='SG',
                 ))
-                self.stdout.write(f"  → 일별 집계: 매출 {daily_sales} SGD, 주문 {daily_orders}건")
 
-        # 2) Product Contribution 시트에서 상품별 데이터 임포트
         for sheet_prefix in ['Product Contribution (place', 'Product Contribution (paid']:
             target_sheet = None
             for sname in wb.sheetnames:
@@ -354,32 +353,20 @@ class Command(BaseCommand):
             ws = wb[target_sheet]
             order_type = 'Placed' if 'place' in target_sheet.lower() else 'Paid'
 
-            i = 5
-            while i <= ws.max_row:
+            for i in range(5, ws.max_row + 1):
                 item_id = str(ws.cell(i, 1).value or '')
                 product = str(ws.cell(i, 2).value or '')
-
-                if not item_id or item_id in ['Item ID', ''] or not item_id.replace('.', '').isdigit():
-                    i += 1
+                if not item_id or not item_id.replace('.', '').isdigit():
                     continue
-
                 sales = safe_decimal(ws.cell(i, 5).value)
                 units = safe_int(ws.cell(i, 9).value)
-
                 if order_date and product:
                     objects.append(ShopeeOrder(
-                        region='cn',
-                        brand=brand,
-                        final_amount=sales,
-                        order_date=order_date,
-                        order_id=item_id,
-                        order_status=order_type,
-                        product_name=product,
-                        quantity=units,
-                        order_amount=sales,
-                        buyer_country='SG',
+                        region='cn', brand=brand, final_amount=sales,
+                        order_date=order_date, order_id=item_id,
+                        order_status=order_type, product_name=product,
+                        quantity=units, order_amount=sales, buyer_country='SG',
                     ))
-                i += 1
 
         ShopeeOrder.objects.bulk_create(objects, batch_size=BATCH_SIZE)
         self.stdout.write(f"  → Shopee {len(objects)}건 임포트 완료")
@@ -387,16 +374,16 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def _import_qoo10_excel(self, file_path, filename, clear_date):
-        """Qoo10 Transaction Excel 임포트 (bulk_create)"""
-        df = pd.read_excel(file_path, sheet_name='data', dtype=str, keep_default_na=False)
-        self.stdout.write(f"  Qoo10 Excel: {len(df)}행 로드됨")
+        """Qoo10 Transaction Excel 임포트"""
+        import openpyxl
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        ws = wb['data']
+        self.stdout.write(f"  Qoo10 Excel: {ws.max_row - 1}행 로드됨")
 
         order_date = extract_date_from_filename(filename)
         if not order_date:
-            self.stderr.write(self.style.ERROR(
-                '파일명에서 날짜를 추출할 수 없습니다. '
-                '파일명에 YYYYMMDD 형식의 날짜가 포함되어야 합니다.'
-            ))
+            self.stderr.write(self.style.ERROR('파일명에서 날짜를 추출할 수 없습니다.'))
+            wb.close()
             return
 
         self.stdout.write(f"  날짜: {order_date}")
@@ -408,46 +395,38 @@ class Command(BaseCommand):
             self.stdout.write(f"  기존 데이터 {deleted}건 삭제 ({order_date})")
 
         qoo10_brand_map = {
-            'nothingbetter': '낫띵베럴',
-            'nothingviral': '낫띵베럴',
-            'drblet': '닥터블릿',
-            'doctorblet': '닥터블릿',
-            'dr.blet': '닥터블릿',
+            'nothingbetter': '낫띵베럴', 'nothingviral': '낫띵베럴',
+            'drblet': '닥터블릿', 'doctorblet': '닥터블릿', 'dr.blet': '닥터블릿',
         }
 
-        def detect_qoo10_brand(brand_raw):
-            if not brand_raw:
-                return ''
-            name = brand_raw.split('/')[0].strip().lower()
-            return qoo10_brand_map.get(name, brand_raw.split('/')[0].strip())
+        # 헤더 읽기 (row 1)
+        headers = [str(ws.cell(1, c).value or '') for c in range(1, ws.max_column + 1)]
+        col = {h: i for i, h in enumerate(headers)}
 
         objects = []
-        for _, row in df.iterrows():
-            product_id = safe_str(row.get('상품번호', ''))
+        for r in range(2, ws.max_row + 1):
+            vals = [ws.cell(r, c).value for c in range(1, ws.max_column + 1)]
+            product_id = safe_str(vals[col.get('상품번호', 0)])
             if not product_id:
                 continue
 
-            brand_raw = safe_str(row.get('브랜드명', ''))
-            brand = detect_qoo10_brand(brand_raw)
-
-            final_amount = safe_decimal(row.get('취소분반영 거래금액'), None)
-            order_amount = safe_decimal(row.get('거래금액'), None)
-            refund_amount = safe_decimal(row.get('거래취소금액'), None)
-            quantity = safe_int(row.get('취소분반영 거래상품수량', 0))
+            brand_raw = safe_str(vals[col.get('브랜드명', 3)])
+            name = brand_raw.split('/')[0].strip().lower() if brand_raw else ''
+            brand = qoo10_brand_map.get(name, brand_raw.split('/')[0].strip() if brand_raw else '')
 
             objects.append(Qoo10Order(
-                region='jp',
-                brand=brand,
-                final_amount=final_amount,
+                region='jp', brand=brand,
+                final_amount=safe_decimal(vals[col.get('취소분반영 거래금액', 6)], None),
                 order_date=order_date,
                 order_id=product_id,
                 order_status='Transaction',
-                product_name=safe_str(row.get('상품명', '')),
-                seller_sku=safe_str(row.get('판매자상품코드', '')),
-                quantity=quantity,
-                order_amount=order_amount,
-                refund_amount=refund_amount,
+                product_name=safe_str(vals[col.get('상품명', 2)]),
+                seller_sku=safe_str(vals[col.get('판매자상품코드', 1)]),
+                quantity=safe_int(vals[col.get('취소분반영 거래상품수량', 9)]),
+                order_amount=safe_decimal(vals[col.get('거래금액', 4)], None),
+                refund_amount=safe_decimal(vals[col.get('거래취소금액', 5)], None),
             ))
 
         Qoo10Order.objects.bulk_create(objects, batch_size=BATCH_SIZE)
         self.stdout.write(f"  → Qoo10 {len(objects)}건 임포트 완료")
+        wb.close()
