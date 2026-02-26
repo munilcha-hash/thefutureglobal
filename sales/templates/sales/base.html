@@ -261,6 +261,8 @@
 
         .table tbody tr:hover { background: rgba(255,255,255,0.02); }
         .table-hover > tbody > tr:hover > * { color: var(--text-primary); }
+        .table tbody tr td { background: transparent; }
+        .table > :not(caption) > * > * { background-color: transparent; }
 
         /* Color Utilities */
         .text-profit { color: var(--accent-green) !important; }
@@ -408,16 +410,18 @@
             {% endif %}
 
             <div class="nav-section mt-2">Brands</div>
+            {% with first_month=months|first %}
             <li class="nav-item">
-                <a class="nav-link" href="{% url 'sales:brand_detail' 'doctorblet' 2026 1 %}">
+                <a class="nav-link" href="{% if first_month %}{% url 'sales:brand_detail' 'doctorblet' first_month.year first_month.month %}{% else %}{% url 'sales:upload_excel' %}{% endif %}">
                     <i class="bi bi-hexagon-fill"></i> 닥터블릿
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{% url 'sales:brand_detail' 'calo' 2026 1 %}">
+                <a class="nav-link" href="{% if first_month %}{% url 'sales:brand_detail' 'calo' first_month.year first_month.month %}{% else %}{% url 'sales:upload_excel' %}{% endif %}">
                     <i class="bi bi-hexagon-fill"></i> Calo
                 </a>
             </li>
+            {% endwith %}
 
             <div class="nav-section mt-2">Channels</div>
             <li class="nav-item">

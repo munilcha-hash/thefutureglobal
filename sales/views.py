@@ -1,7 +1,7 @@
 import json
 from decimal import Decimal
-from django.shortcuts import render, redirect
-from django.http import JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, Http404
 from django.db.models import Sum, Avg, Count, F
 from django.contrib import messages
 from django.core.management import call_command
@@ -117,7 +117,7 @@ def monthly_pnl(request, year, month):
 
 def brand_detail(request, brand_code, year, month):
     """브랜드별 상세"""
-    brand = Brand.objects.get(code=brand_code)
+    brand = get_object_or_404(Brand, code=brand_code)
     daily = BrandDailySales.objects.filter(brand=brand, year=year, month=month).order_by('date')
     totals = daily.aggregate(
         total_gsv=Sum('total_gsv'), total_b2c=Sum('b2c_total'),
