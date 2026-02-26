@@ -1,34 +1,49 @@
 {% extends 'sales/base.html' %}
 
-{% block title %}데이터 업로드{% endblock %}
+{% block title %}데이터 업로드 - The Future Global{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-6">
+        <div class="page-header text-center">
+            <h3>Data Upload</h3>
+            <div class="subtitle">엑셀 파일을 업로드하여 데이터를 임포트합니다</div>
+        </div>
+
         <div class="card">
-            <div class="card-header"><i class="bi bi-upload"></i> 엑셀 파일 업로드</div>
-            <div class="card-body">
-                <p class="text-muted mb-4">매출/손익 관리 엑셀 파일(.xlsx)을 업로드하면 자동으로 데이터가 임포트됩니다. 기존 데이터는 덮어씌워집니다.</p>
+            <div class="card-body" style="padding:2rem;">
+                <div style="text-align:center;margin-bottom:2rem;">
+                    <div style="width:64px;height:64px;background:rgba(99,102,241,0.1);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+                        <i class="bi bi-cloud-arrow-up-fill" style="font-size:1.8rem;color:var(--accent-blue);"></i>
+                    </div>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">
+                        매출/손익 관리 엑셀 파일(.xlsx)을 업로드하면<br>자동으로 데이터가 임포트됩니다.
+                    </p>
+                </div>
+
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="file" class="form-label">엑셀 파일 선택</label>
+                    <div class="mb-4">
+                        <label for="file" class="form-label" style="font-weight:600;font-size:0.85rem;">엑셀 파일 선택</label>
                         <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
-                        <div class="form-text">지원 형식: .xlsx</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem;">지원 형식: .xlsx &middot; 최대 50MB</div>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-cloud-upload"></i> 업로드 및 임포트
+                    <button type="submit" class="btn btn-primary w-100" style="padding:0.75rem;">
+                        <i class="bi bi-cloud-arrow-up-fill"></i> 업로드 및 임포트
                     </button>
                 </form>
 
-                <hr>
-                <h6>업로드 파일 요구사항</h6>
-                <ul class="text-muted small">
-                    <li>시트명 규칙: '손익관리_1월', '손익관리_2월' 등</li>
-                    <li>브랜드 매출 시트: '닥터블릿 매출_1월', 'Calo 매출_1월' 등</li>
-                    <li>'쇼피파이 매출_RAW', '틱톡샵 매출_RAW' 시트 포함 가능</li>
-                    <li>'Tax_TT' 시트로 주별 세금 데이터 임포트</li>
-                </ul>
+                <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border-color);">
+                    <h6 style="font-size:0.85rem;font-weight:700;margin-bottom:0.75rem;">
+                        <i class="bi bi-info-circle" style="color:var(--accent-blue);"></i> 파일 요구사항
+                    </h6>
+                    <ul style="color:var(--text-muted);font-size:0.8rem;padding-left:1.2rem;margin:0;line-height:1.8;">
+                        <li>시트명 규칙: <code style="color:var(--accent-blue);background:rgba(99,102,241,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.75rem;">손익관리_1월</code>, <code style="color:var(--accent-blue);background:rgba(99,102,241,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.75rem;">손익관리_2월</code> 등</li>
+                        <li>브랜드: <code style="color:var(--accent-purple);background:rgba(139,92,246,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.75rem;">닥터블릿 매출_1월</code>, <code style="color:var(--accent-purple);background:rgba(139,92,246,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.75rem;">Calo 매출_1월</code></li>
+                        <li>RAW 데이터: <code style="color:var(--accent-amber);background:rgba(245,158,11,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.75rem;">쇼피파이 매출_RAW</code>, <code style="color:var(--accent-amber);background:rgba(245,158,11,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.75rem;">틱톡샵 매출_RAW</code></li>
+                        <li>세금: <code style="color:var(--accent-green);background:rgba(34,197,94,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.75rem;">Tax_TT</code> 시트</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>

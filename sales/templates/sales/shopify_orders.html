@@ -1,13 +1,13 @@
 {% extends 'sales/base.html' %}
 {% load sales_filters %}
 
-{% block title %}쇼피파이 주문{% endblock %}
+{% block title %}Shopify Orders - The Future Global{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div>
-        <h4 class="mb-0">쇼피파이 주문</h4>
-        <small class="text-muted">총 {{ total_count }}건{% if selected_brand %} ({{ selected_brand }}){% endif %}</small>
+        <h3>Shopify Orders</h3>
+        <div class="subtitle">총 {{ total_count }}건{% if selected_brand %} &middot; {{ selected_brand }}{% endif %}</div>
     </div>
     <select class="form-select form-select-sm" style="width:auto" onchange="location.href='?brand='+this.value">
         <option value="">전체 브랜드</option>
@@ -17,7 +17,7 @@
 
 <div class="card">
     <div class="card-body p-0" style="overflow-x:auto">
-        <table class="table table-sm table-hover table-striped mb-0">
+        <table class="table table-hover mb-0">
             <thead>
                 <tr>
                     <th>날짜</th><th>브랜드</th><th>주문번호</th>
@@ -28,16 +28,18 @@
             <tbody>
             {% for o in orders %}
                 <tr>
-                    <td>{{ o.order_date|date:"m/d" }}</td>
-                    <td><span class="badge bg-secondary">{{ o.brand }}</span></td>
-                    <td>{{ o.order_name }}</td>
-                    <td class="text-end">{{ o.final_amount|usd }}</td>
+                    <td style="color:var(--text-primary);font-weight:500;">{{ o.order_date|date:"m/d" }}</td>
+                    <td><span style="background:rgba(99,102,241,0.1);color:var(--accent-blue);padding:0.15rem 0.5rem;border-radius:5px;font-size:0.75rem;font-weight:600;">{{ o.brand }}</span></td>
+                    <td style="font-size:0.8rem;">{{ o.order_name }}</td>
+                    <td class="text-end" style="font-weight:600;color:var(--text-primary)">{{ o.final_amount|usd }}</td>
                     <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ o.lineitem_name }}</td>
-                    <td>{{ o.lineitem_sku }}</td>
+                    <td style="font-size:0.78rem;color:var(--text-muted)">{{ o.lineitem_sku }}</td>
                     <td class="text-end">{{ o.lineitem_quantity }}</td>
                     <td>{{ o.shipping_city }}</td>
                     <td>{{ o.shipping_province }}</td>
                 </tr>
+            {% empty %}
+                <tr><td colspan="9" class="text-center py-4" style="color:var(--text-muted)"><i class="bi bi-inbox" style="font-size:1.5rem;display:block;margin-bottom:0.5rem;"></i>주문 데이터가 없습니다</td></tr>
             {% endfor %}
             </tbody>
         </table>

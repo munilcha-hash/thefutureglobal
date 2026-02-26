@@ -1,87 +1,87 @@
 {% extends 'sales/base.html' %}
 {% load sales_filters %}
 
-{% block title %}{{ brand.name_kr }} {{ month }}월{% endblock %}
+{% block title %}{{ brand.name_kr }} {{ month }}월 - The Future Global{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div>
-        <h4 class="mb-0">{{ brand.name_kr }} - {{ year }}년 {{ month }}월</h4>
-        <small class="text-muted">브랜드별 일별 매출 상세</small>
+        <h3>{{ brand.name_kr }}</h3>
+        <div class="subtitle">{{ year }}년 {{ month }}월 브랜드 매출 상세</div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         {% for m in months %}
-        <a href="{% url 'sales:brand_detail' brand.code m.year m.month %}" class="btn btn-sm {% if m.month == month %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ m.month }}월</a>
+        <a href="{% url 'sales:brand_detail' brand.code m.year m.month %}" class="btn btn-sm {% if m.month == month %}btn-primary{% else %}btn-outline-secondary{% endif %}" style="{% if m.month != month %}border-color:var(--border-color);color:var(--text-secondary){% endif %}">{{ m.month }}월</a>
         {% endfor %}
     </div>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
-        <div class="stat-card text-center">
+        <div class="stat-card">
+            <div class="icon-box" style="background:rgba(99,102,241,0.1);color:var(--accent-blue);"><i class="bi bi-graph-up-arrow"></i></div>
             <div class="label">전체 GSV</div>
-            <div class="value" style="font-size:1.1rem">{{ totals.total_gsv|krw }}</div>
+            <div class="value" style="font-size:1.15rem">{{ totals.total_gsv|krw }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="stat-card text-center">
+        <div class="stat-card">
+            <div class="icon-box" style="background:rgba(139,92,246,0.1);color:var(--accent-purple);"><i class="bi bi-cart-fill"></i></div>
             <div class="label">B2C 합계</div>
-            <div class="value" style="font-size:1.1rem">{{ totals.total_b2c|krw }}</div>
+            <div class="value" style="font-size:1.15rem">{{ totals.total_b2c|krw }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="stat-card text-center">
+        <div class="stat-card">
+            <div class="icon-box" style="background:rgba(245,158,11,0.1);color:var(--accent-amber);"><i class="bi bi-building"></i></div>
             <div class="label">B2B 합계</div>
-            <div class="value" style="font-size:1.1rem">{{ totals.total_b2b|krw }}</div>
+            <div class="value" style="font-size:1.15rem">{{ totals.total_b2b|krw }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="stat-card text-center">
+        <div class="stat-card">
+            <div class="icon-box" style="background:rgba(239,68,68,0.1);color:var(--accent-red);"><i class="bi bi-arrow-return-left"></i></div>
             <div class="label">환불 합계</div>
-            <div class="value text-loss" style="font-size:1.1rem">{{ totals.total_refund|krw }}</div>
+            <div class="value text-loss" style="font-size:1.15rem">{{ totals.total_refund|krw }}</div>
         </div>
     </div>
 </div>
 
 <div class="card mb-4">
-    <div class="card-header">일별 GSV 추이</div>
+    <div class="card-header"><i class="bi bi-activity"></i> 일별 GSV 추이</div>
     <div class="card-body">
         <canvas id="brandChart" height="280"></canvas>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header">일별 상세</div>
+    <div class="card-header"><i class="bi bi-table"></i> 일별 상세</div>
     <div class="card-body p-0" style="overflow-x:auto">
-        <table class="table table-sm table-hover table-striped mb-0">
+        <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th>날짜</th>
-                    <th class="text-end">B2C 쇼피파이</th>
-                    <th class="text-end">B2C 아마존</th>
-                    <th class="text-end">B2C 틱톡</th>
-                    <th class="text-end">B2C 합계</th>
-                    <th class="text-end">환불</th>
-                    <th class="text-end">GSV</th>
-                    <th class="text-end">B2B</th>
-                    <th class="text-end">전체 GSV</th>
-                    <th class="text-end">쇼피파이 광고</th>
+                    <th>날짜</th><th class="text-end">Shopify</th><th class="text-end">Amazon</th>
+                    <th class="text-end">TikTok</th><th class="text-end">B2C</th><th class="text-end">환불</th>
+                    <th class="text-end">GSV</th><th class="text-end">B2B</th><th class="text-end">전체 GSV</th>
+                    <th class="text-end">광고비</th>
                 </tr>
             </thead>
             <tbody>
             {% for d in daily %}
                 <tr>
-                    <td>{{ d.date|date:"m/d" }}</td>
+                    <td style="color:var(--text-primary);font-weight:500;">{{ d.date|date:"m/d" }}</td>
                     <td class="text-end">{{ d.b2c_shopify|num }}</td>
                     <td class="text-end">{{ d.b2c_amazon|num }}</td>
                     <td class="text-end">{{ d.b2c_tiktok|num }}</td>
-                    <td class="text-end"><strong>{{ d.b2c_total|num }}</strong></td>
+                    <td class="text-end" style="font-weight:500;color:var(--text-primary)">{{ d.b2c_total|num }}</td>
                     <td class="text-end text-loss">{{ d.refund_total|num }}</td>
                     <td class="text-end">{{ d.gsv|num }}</td>
                     <td class="text-end">{{ d.b2b_total|num }}</td>
-                    <td class="text-end"><strong>{{ d.total_gsv|num }}</strong></td>
+                    <td class="text-end" style="font-weight:600;color:var(--text-primary)">{{ d.total_gsv|num }}</td>
                     <td class="text-end">{{ d.ad_shopify|num }}</td>
                 </tr>
+            {% empty %}
+                <tr><td colspan="10" class="text-center py-4" style="color:var(--text-muted)"><i class="bi bi-inbox" style="font-size:1.5rem;display:block;margin-bottom:0.5rem;"></i>데이터가 없습니다</td></tr>
             {% endfor %}
             </tbody>
         </table>
@@ -95,19 +95,25 @@ const labels = [{% for d in daily %}'{{ d.date|date:"m/d" }}',{% endfor %}];
 const gsvData = [{% for d in daily %}{{ d.total_gsv|default:"0" }},{% endfor %}];
 const b2cData = [{% for d in daily %}{{ d.b2c_total|default:"0" }},{% endfor %}];
 
-new Chart(document.getElementById('brandChart'), {
-    type: 'bar',
-    data: {
-        labels: labels,
-        datasets: [
-            { label: '전체 GSV', data: gsvData, backgroundColor: 'rgba(37,99,235,0.7)', borderRadius: 3 },
-            { label: 'B2C', data: b2cData, backgroundColor: 'rgba(124,58,237,0.4)', borderRadius: 3 },
-        ]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        scales: { y: { ticks: { callback: v => '₩' + (v/1000000).toFixed(1) + 'M' } } }
-    }
-});
+if (labels.length > 0) {
+    new Chart(document.getElementById('brandChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: '전체 GSV', data: gsvData, backgroundColor: 'rgba(99,102,241,0.6)', borderRadius: 4, order: 2 },
+                { label: 'B2C', data: b2cData, type: 'line', borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.05)', fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 2, order: 1 },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            scales: {
+                y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' }, grid: { color: 'rgba(255,255,255,0.03)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
 </script>
 {% endblock %}

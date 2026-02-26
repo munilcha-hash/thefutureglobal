@@ -1,15 +1,15 @@
 {% extends 'sales/base.html' %}
 {% load sales_filters %}
 
-{% block title %}대시보드 - 미국사업팀{% endblock %}
+{% block title %}대시보드 - The Future Global{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div>
-        <h4 class="mb-0">대시보드</h4>
-        <small class="text-muted">{{ selected_year }}년 {% if selected_month %}{{ selected_month }}월{% else %}전체{% endif %} 매출/손익 현황</small>
+        <h3>Dashboard</h3>
+        <div class="subtitle">{{ selected_year }}년 {% if selected_month %}{{ selected_month }}월{% else %}전체{% endif %} 매출/손익 현황</div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 align-items-center">
         <select class="form-select form-select-sm" style="width:auto" onchange="location.href='?year={{ selected_year }}&month='+this.value">
             <option value="0" {% if not selected_month %}selected{% endif %}>전체</option>
             {% for m in months %}
@@ -17,7 +17,9 @@
             {% endfor %}
         </select>
         {% if exchange_rate %}
-        <span class="badge bg-light text-dark border align-self-center">환율: ₩{{ exchange_rate.rate|num }}</span>
+        <span style="background:rgba(99,102,241,0.1);color:var(--accent-blue);padding:0.35rem 0.75rem;border-radius:8px;font-size:0.8rem;font-weight:600;">
+            <i class="bi bi-currency-exchange"></i> ₩{{ exchange_rate.rate|num }}
+        </span>
         {% endif %}
     </div>
 </div>
@@ -26,29 +28,42 @@
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
         <div class="stat-card">
+            <div class="icon-box" style="background:rgba(99,102,241,0.1);color:var(--accent-blue);">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
             <div class="label">GSV (순매출)</div>
             <div class="value">{{ totals.total_gsv|krw }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
         <div class="stat-card">
-            <div class="label">매출원가</div>
+            <div class="icon-box" style="background:rgba(245,158,11,0.1);color:var(--accent-amber);">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <div class="label">매출원가 (COGS)</div>
             <div class="value">{{ totals.total_cogs|krw }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
         <div class="stat-card">
+            <div class="icon-box" style="background:rgba(239,68,68,0.1);color:var(--accent-red);">
+                <i class="bi bi-credit-card"></i>
+            </div>
             <div class="label">총 비용</div>
             <div class="value">{{ totals.total_expense|krw }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
         <div class="stat-card">
+            <div class="icon-box" style="background:rgba(34,197,94,0.1);color:var(--accent-green);">
+                <i class="bi bi-trophy"></i>
+            </div>
             <div class="label">영업이익</div>
             <div class="value {% if totals.total_profit > 0 %}text-profit{% else %}text-loss{% endif %}">
                 {{ totals.total_profit|krw }}
             </div>
             <div class="change {% if totals.avg_margin > 0 %}positive{% else %}negative{% endif %}">
+                {% if totals.avg_margin > 0 %}<i class="bi bi-arrow-up-short"></i>{% else %}<i class="bi bi-arrow-down-short"></i>{% endif %}
                 마진율 {{ totals.avg_margin|pct }}
             </div>
         </div>
@@ -59,36 +74,36 @@
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
         <div class="stat-card">
-            <div class="label"><i class="bi bi-megaphone"></i> 퍼포먼스 광고</div>
+            <div class="label"><i class="bi bi-megaphone-fill" style="color:var(--accent-blue)"></i> 퍼포먼스 광고</div>
             <div class="value" style="font-size:1.1rem">{{ totals.total_ad|krw }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
         <div class="stat-card">
-            <div class="label"><i class="bi bi-person-video3"></i> 인플루언서 광고</div>
+            <div class="label"><i class="bi bi-camera-video-fill" style="color:var(--accent-purple)"></i> 인플루언서 광고</div>
             <div class="value" style="font-size:1.1rem">{{ totals.total_influencer|krw }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
         <div class="stat-card">
-            <div class="label"><i class="bi bi-percent"></i> 판매수수료</div>
+            <div class="label"><i class="bi bi-percent" style="color:var(--accent-amber)"></i> 판매수수료</div>
             <div class="value" style="font-size:1.1rem">{{ totals.total_commission|krw }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
         <div class="stat-card">
-            <div class="label"><i class="bi bi-truck"></i> 운반비</div>
+            <div class="label"><i class="bi bi-truck" style="color:var(--accent-cyan)"></i> 운반비</div>
             <div class="value" style="font-size:1.1rem">{{ totals.total_shipping|krw }}</div>
         </div>
     </div>
 </div>
 
 <div class="row g-3 mb-4">
-    <!-- 일별 GSV 차트 -->
+    <!-- Revenue Chart -->
     <div class="col-lg-8">
         <div class="card">
-            <div class="card-header d-flex justify-content-between">
-                <span>{% if selected_month %}일별{% else %}월별{% endif %} 매출 & 영업이익</span>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-activity"></i> {% if selected_month %}일별{% else %}월별{% endif %} 매출 & 영업이익</span>
             </div>
             <div class="card-body">
                 <canvas id="revenueChart" height="300"></canvas>
@@ -96,51 +111,66 @@
         </div>
     </div>
 
-    <!-- 채널별 비중 -->
+    <!-- Channel Chart -->
     <div class="col-lg-4">
         <div class="card">
-            <div class="card-header">채널별 매출 비중</div>
+            <div class="card-header"><i class="bi bi-pie-chart-fill"></i> 채널별 매출 비중</div>
             <div class="card-body">
-                <canvas id="channelChart" height="280"></canvas>
-                <div class="mt-3">
-                    <small class="d-block"><span class="badge bg-primary">쇼피파이</span> {{ channel_totals.shopify|krw }}</small>
-                    <small class="d-block mt-1"><span class="badge bg-warning text-dark">아마존</span> {{ channel_totals.amazon|krw }}</small>
-                    <small class="d-block mt-1"><span class="badge bg-dark">틱톡샵</span> {{ channel_totals.tiktok|krw }}</small>
-                    <small class="d-block mt-1 text-danger">환불: {{ channel_totals.refund|krw }}</small>
+                <canvas id="channelChart" height="240"></canvas>
+                <div class="mt-3" style="display:flex;flex-direction:column;gap:0.5rem;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span style="font-size:0.8rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#6366f1;margin-right:6px;"></span>Shopify</span>
+                        <span style="font-size:0.8rem;font-weight:600;">{{ channel_totals.shopify|krw }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span style="font-size:0.8rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f59e0b;margin-right:6px;"></span>Amazon</span>
+                        <span style="font-size:0.8rem;font-weight:600;">{{ channel_totals.amazon|krw }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span style="font-size:0.8rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#8b5cf6;margin-right:6px;"></span>TikTok</span>
+                        <span style="font-size:0.8rem;font-weight:600;">{{ channel_totals.tiktok|krw }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center" style="padding-top:0.35rem;border-top:1px solid var(--border-color);">
+                        <span style="font-size:0.8rem;color:var(--accent-red)"><i class="bi bi-arrow-return-left"></i> 환불</span>
+                        <span style="font-size:0.8rem;font-weight:600;color:var(--accent-red)">{{ channel_totals.refund|krw }}</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 브랜드별 -->
+<!-- Brand Section -->
 <div class="row g-3 mb-4">
-    <div class="col-lg-6">
+    <div class="col-lg-5">
         <div class="card">
-            <div class="card-header">브랜드별 GSV</div>
+            <div class="card-header"><i class="bi bi-hexagon-fill"></i> 브랜드별 GSV</div>
             <div class="card-body">
                 <canvas id="brandChart" height="250"></canvas>
             </div>
         </div>
     </div>
-    <div class="col-lg-6">
+    <div class="col-lg-7">
         <div class="card">
-            <div class="card-header">브랜드별 매출 상세</div>
+            <div class="card-header"><i class="bi bi-table"></i> 브랜드별 매출 상세</div>
             <div class="card-body p-0">
-                <table class="table table-sm table-hover mb-0">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr><th>브랜드</th><th class="text-end">GSV</th><th class="text-end">B2C</th><th class="text-end">B2B</th></tr>
                     </thead>
                     <tbody>
                     {% for b in brand_totals %}
                         <tr>
-                            <td><strong>{{ b.brand__name_kr }}</strong></td>
-                            <td class="text-end">{{ b.total_gsv|krw }}</td>
+                            <td><strong style="color:var(--text-primary)">{{ b.brand__name_kr }}</strong></td>
+                            <td class="text-end" style="font-weight:600;color:var(--text-primary)">{{ b.total_gsv|krw }}</td>
                             <td class="text-end">{{ b.total_b2c|krw }}</td>
                             <td class="text-end">{{ b.total_b2b|krw }}</td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="4" class="text-center text-muted py-3">데이터 없음</td></tr>
+                        <tr><td colspan="4" class="text-center py-4" style="color:var(--text-muted)">
+                            <i class="bi bi-inbox" style="font-size:1.5rem;display:block;margin-bottom:0.5rem;"></i>
+                            데이터가 없습니다
+                        </td></tr>
                     {% endfor %}
                     </tbody>
                 </table>
@@ -159,7 +189,6 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch(`/api/dashboard-data/?year=${year}&month=${month}`)
     .then(r => r.json())
     .then(data => {
-        // Revenue Chart
         const ctx = document.getElementById('revenueChart').getContext('2d');
         let labels, gsvData, profitData;
 
@@ -181,18 +210,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     {
                         label: 'GSV',
                         data: gsvData,
-                        backgroundColor: 'rgba(37,99,235,0.7)',
-                        borderRadius: 4,
+                        backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                        hoverBackgroundColor: 'rgba(99, 102, 241, 0.8)',
+                        borderRadius: 6,
                         order: 2,
                     },
                     {
                         label: '영업이익',
                         data: profitData,
                         type: 'line',
-                        borderColor: '#16a34a',
-                        backgroundColor: 'rgba(22,163,74,0.1)',
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.05)',
                         fill: true,
-                        tension: 0.3,
+                        tension: 0.4,
+                        borderWidth: 2.5,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#22c55e',
                         order: 1,
                     }
                 ]
@@ -200,15 +233,20 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
                 plugins: { legend: { position: 'top' } },
                 scales: {
-                    y: { ticks: { callback: v => '₩' + (v/1000000).toFixed(0) + 'M' } }
+                    y: {
+                        ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' },
+                        grid: { color: 'rgba(255,255,255,0.03)' }
+                    },
+                    x: { grid: { display: false } }
                 }
             }
         });
     });
 
-    // Channel Chart
+    // Channel Doughnut
     const channelData = {
         shopify: {{ channel_totals.shopify|default:"0" }},
         amazon: {{ channel_totals.amazon|default:"0" }},
@@ -217,18 +255,19 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(document.getElementById('channelChart'), {
         type: 'doughnut',
         data: {
-            labels: ['쇼피파이', '아마존', '틱톡샵'],
+            labels: ['Shopify', 'Amazon', 'TikTok'],
             datasets: [{
                 data: [channelData.shopify, channelData.amazon, channelData.tiktok],
-                backgroundColor: ['#2563eb', '#f59e0b', '#1e293b'],
+                backgroundColor: ['#6366f1', '#f59e0b', '#8b5cf6'],
                 borderWidth: 0,
+                hoverOffset: 8,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } },
-            cutout: '60%',
+            plugins: { legend: { display: false } },
+            cutout: '70%',
         }
     });
 
@@ -243,15 +282,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'GSV',
                     data: brandGSV,
-                    backgroundColor: ['#2563eb', '#7c3aed', '#f59e0b', '#16a34a'],
-                    borderRadius: 6,
+                    backgroundColor: ['#6366f1', '#8b5cf6', '#f59e0b', '#22c55e'],
+                    borderRadius: 8,
+                    barThickness: 32,
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 indexAxis: 'y',
                 plugins: { legend: { display: false } },
-                scales: { x: { ticks: { callback: v => '₩' + (v/1000000).toFixed(0) + 'M' } } }
+                scales: {
+                    x: {
+                        ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'K' },
+                        grid: { color: 'rgba(255,255,255,0.03)' }
+                    },
+                    y: { grid: { display: false } }
+                }
             }
         });
     }
