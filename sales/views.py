@@ -6,6 +6,7 @@ from io import StringIO
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, Http404
+from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum, Avg, Count, F, Max
 from django.contrib import messages
 from django.core.management import call_command
@@ -287,55 +288,62 @@ def qoo10_orders(request):
 
 
 def upload_excel(request):
-    """엑셀/CSV 파일 업로드"""
-    if request.method == 'POST' and request.FILES.get('file'):
-        f = request.FILES['file']
-
-        # 파일 사이즈 제한 (10MB)
-        if f.size > 10 * 1024 * 1024:
-            messages.error(request, f'파일이 너무 큽니다 ({f.size // 1024 // 1024}MB). 최대 10MB까지 가능합니다.')
-            return redirect('sales:dashboard')
-
-        region = request.POST.get('region', 'us')
-        original_name = f.name
-        path = _save_upload(f)
-
-        # CSV 파일이면 RAW 임포트로 자동 라우팅
-        is_csv = original_name.lower().endswith('.csv')
-
-        try:
-            out = StringIO()
-            err = StringIO()
-            if is_csv:
-                # 원본 파일명에서 플랫폼 자동 감지
-                platform = _detect_platform(original_name)
-                cmd_args = [path, '--clear-date', '--original-filename', original_name]
-                if platform:
-                    cmd_args += ['--platform', platform]
-                call_command('import_raw', *cmd_args, stdout=out, stderr=err)
-                output = out.getvalue().strip()
-                last_line = output.split('\n')[-1] if output else ''
-                messages.success(request, f'"{original_name}" {last_line}')
-            else:
-                call_command('import_excel', path, '--region', region, '--clear',
-                             stdout=out, stderr=err)
-                region_name = get_region_config(region).get('name', region)
-                messages.success(request, f'[{region_name}] "{original_name}" 임포트 완료!')
-
-            error_output = err.getvalue().strip()
-            if error_output:
-                messages.warning(request, f'경고: {error_output[:200]}')
-        except Exception as e:
-            err_msg = str(e)[:300]
-            messages.error(request, f'임포트 실패: {err_msg}')
-        finally:
-            # 임시 파일 정리
-            try:
-                os.remove(path)
-            except OSError:
-                pass
-        return redirect('sales:dashboard')
+    """엑셀/CSV 파일 업로드 페이지 (GET만)"""
     return render(request, 'sales/upload.html')
+
+
+@csrf_exempt
+def api_upload_excel(request):
+    """AJAX 엑셀/CSV 업로드 API (JSON 응답)"""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST만 허용'}, status=405)
+
+    f = request.FILES.get('file')
+    if not f:
+        return JsonResponse({'ok': False, 'error': '파일이 없습니다'})
+
+    original_name = f.name
+    if f.size > 10 * 1024 * 1024:
+        return JsonResponse({'ok': False, 'error': f'파일이 너무 큽니다 ({f.size // 1024 // 1024}MB). 최대 10MB'})
+
+    region = request.POST.get('region', 'us')
+    path = _save_upload(f)
+    is_csv = original_name.lower().endswith('.csv')
+
+    try:
+        out = StringIO()
+        err = StringIO()
+        if is_csv:
+            platform = _detect_platform(original_name)
+            cmd_args = [path, '--clear-date', '--original-filename', original_name]
+            if platform:
+                cmd_args += ['--platform', platform]
+            call_command('import_raw', *cmd_args, stdout=out, stderr=err)
+        else:
+            call_command('import_excel', path, '--region', region, '--clear',
+                         stdout=out, stderr=err)
+
+        output = out.getvalue().strip()
+        last_line = output.split('\n')[-1] if output else '완료'
+        error_output = err.getvalue().strip()
+
+        return JsonResponse({
+            'ok': True,
+            'message': last_line,
+            'filename': original_name,
+            'warning': error_output[:200] if error_output else None,
+        })
+    except Exception as e:
+        return JsonResponse({
+            'ok': False,
+            'error': str(e)[:300],
+            'filename': original_name,
+        })
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 def upload_raw(request):
@@ -352,8 +360,6 @@ def upload_raw(request):
     }
     return render(request, 'sales/upload_raw.html', context)
 
-
-from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
 def api_upload_raw(request):
