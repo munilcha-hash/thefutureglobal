@@ -15,6 +15,7 @@ urlpatterns = [
     path('orders/qoo10/', views.qoo10_orders, name='qoo10_orders'),
     path('upload/', views.upload_excel, name='upload_excel'),
     path('upload/raw/', views.upload_raw, name='upload_raw'),
+    path('api/upload-raw/', views.api_upload_raw, name='api_upload_raw'),
     path('api/dashboard-data/', views.api_dashboard_data, name='api_dashboard_data'),
     path('api/pnl-data/<int:year>/<int:month>/', views.api_pnl_data, name='api_pnl_data'),
 ]

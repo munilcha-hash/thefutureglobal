@@ -10,6 +10,9 @@
             <div class="subtitle">플랫폼별 RAW 파일(CSV/Excel)을 업로드하면 자동으로 감지하여 임포트합니다</div>
         </div>
 
+        <!-- 결과 메시지 영역 -->
+        <div id="result-area" style="display:none;margin-bottom:1rem;"></div>
+
         <div class="card mb-4">
             <div class="card-body" style="padding:2rem;">
                 <div style="text-align:center;margin-bottom:2rem;">
@@ -22,119 +25,85 @@
                     </p>
                 </div>
 
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-
+                <div id="upload-form">
                     <div class="mb-3">
                         <label for="platform" class="form-label" style="font-weight:600;font-size:0.85rem;">플랫폼 선택</label>
-                        <select class="form-select" id="platform" name="platform" onchange="updateRawGuide(this.value)">
+                        <select class="form-select" id="platform" onchange="updateRawGuide(this.value)">
                             <option value="">자동 감지 (파일명 기반)</option>
-                            <option value="shopify">🇺🇸 Shopify (미국)</option>
-                            <option value="tiktok">🇺🇸 TikTok Shop (미국)</option>
-                            <option value="shopee">🇨🇳 Shopee (싱가폴/중국)</option>
-                            <option value="qoo10">🇯🇵 Qoo10 (일본)</option>
+                            <option value="shopify">Shopify (미국)</option>
+                            <option value="tiktok">TikTok Shop (미국)</option>
+                            <option value="shopee">Shopee (싱가폴/중국)</option>
+                            <option value="qoo10">Qoo10 (일본)</option>
                         </select>
                     </div>
 
                     <div class="mb-3">
                         <label for="rawfile" class="form-label" style="font-weight:600;font-size:0.85rem;">RAW 파일 선택</label>
-                        <input type="file" class="form-control" id="rawfile" name="file" accept=".csv,.xlsx,.xls" required>
-                        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem;">지원 형식: .csv, .xlsx &middot; 최대 50MB</div>
+                        <input type="file" class="form-control" id="rawfile" accept=".csv,.xlsx,.xls">
+                        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem;">지원 형식: .csv, .xlsx &middot; 최대 10MB</div>
                     </div>
 
                     <div class="mb-4">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="clearDate" name="clear_date" checked>
+                            <input class="form-check-input" type="checkbox" id="clearDate" checked>
                             <label class="form-check-label" for="clearDate" style="font-size:0.82rem;color:var(--text-secondary);">
                                 해당 날짜 범위의 기존 데이터 삭제 후 임포트
                             </label>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100" style="padding:0.75rem;">
+                    <button type="button" id="uploadBtn" class="btn btn-primary w-100" style="padding:0.75rem;" onclick="doUpload()">
                         <i class="bi bi-file-earmark-arrow-up-fill"></i> RAW 업로드 및 임포트
                     </button>
-                </form>
+                </div>
+
+                <!-- 업로드 진행 중 -->
+                <div id="upload-progress" style="display:none;text-align:center;padding:2rem 0;">
+                    <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p id="progress-text" style="margin-top:1rem;color:var(--text-secondary);font-size:0.9rem;">
+                        파일 업로드 및 임포트 중...
+                    </p>
+                    <p style="color:var(--text-muted);font-size:0.75rem;">페이지를 닫지 마세요. 잠시만 기다려주세요.</p>
+                </div>
 
                 <!-- 플랫폼별 파일 안내 -->
                 <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border-color);">
                     <h6 style="font-size:0.85rem;font-weight:700;margin-bottom:0.75rem;">
                         <i class="bi bi-info-circle" style="color:var(--accent-purple);"></i> 플랫폼별 파일 형식
                     </h6>
-
-                    <!-- Auto detect -->
                     <div id="raw-guide-auto" class="raw-guide">
                         <div style="display:grid;gap:0.75rem;">
                             <div style="background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.1);border-radius:10px;padding:0.85rem 1rem;">
-                                <div style="font-size:0.8rem;font-weight:700;color:var(--accent-blue);margin-bottom:0.35rem;">🇺🇸 Shopify</div>
+                                <div style="font-size:0.8rem;font-weight:700;color:var(--accent-blue);margin-bottom:0.35rem;">Shopify</div>
                                 <div style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;">
-                                    파일명: <code style="color:var(--accent-blue);background:rgba(99,102,241,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">orders_export (33).csv</code><br>
+                                    파일명: <code style="font-size:0.7rem;">orders_export (33).csv</code><br>
                                     Shopify 관리자 &rarr; 주문 &rarr; 내보내기
                                 </div>
                             </div>
                             <div style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.1);border-radius:10px;padding:0.85rem 1rem;">
-                                <div style="font-size:0.8rem;font-weight:700;color:var(--accent-purple);margin-bottom:0.35rem;">🇺🇸 TikTok Shop</div>
+                                <div style="font-size:0.8rem;font-weight:700;color:var(--accent-purple);margin-bottom:0.35rem;">TikTok Shop</div>
                                 <div style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;">
-                                    파일명: <code style="color:var(--accent-purple);background:rgba(139,92,246,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">All order-2026-02-25-18_02.csv</code><br>
+                                    파일명: <code style="font-size:0.7rem;">All order-2026-02-25-18_02.csv</code><br>
                                     TikTok Seller Center &rarr; 주문 관리 &rarr; 내보내기
                                 </div>
                             </div>
                             <div style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.1);border-radius:10px;padding:0.85rem 1rem;">
-                                <div style="font-size:0.8rem;font-weight:700;color:var(--accent-amber);margin-bottom:0.35rem;">🇨🇳 Shopee</div>
+                                <div style="font-size:0.8rem;font-weight:700;color:var(--accent-amber);margin-bottom:0.35rem;">Shopee</div>
                                 <div style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;">
-                                    파일명: <code style="color:var(--accent-amber);background:rgba(245,158,11,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">drblet.sg.shopee-shop-stats.20260224.xlsx</code><br>
+                                    파일명: <code style="font-size:0.7rem;">drblet.sg.shopee-shop-stats.20260224.xlsx</code><br>
                                     Shopee Seller Centre &rarr; Business Insights &rarr; 다운로드
                                 </div>
                             </div>
                             <div style="background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.1);border-radius:10px;padding:0.85rem 1rem;">
-                                <div style="font-size:0.8rem;font-weight:700;color:var(--accent-green);margin-bottom:0.35rem;">🇯🇵 Qoo10</div>
+                                <div style="font-size:0.8rem;font-weight:700;color:var(--accent-green);margin-bottom:0.35rem;">Qoo10</div>
                                 <div style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;">
-                                    파일명: <code style="color:var(--accent-green);background:rgba(34,197,94,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">Qoo10_Transaction_20260223_20260223.xlsx</code><br>
+                                    파일명: <code style="font-size:0.7rem;">Qoo10_Transaction_20260223_20260223.xlsx</code><br>
                                     Qoo10 판매자센터 &rarr; 거래현황 &rarr; 다운로드
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Shopify specific -->
-                    <div id="raw-guide-shopify" class="raw-guide" style="display:none;">
-                        <ul style="color:var(--text-muted);font-size:0.8rem;padding-left:1.2rem;margin:0;line-height:1.8;">
-                            <li>CSV 형식 (Shopify 주문 내보내기)</li>
-                            <li>필수 컬럼: Name, Paid at, Total, Vendor, Lineitem *</li>
-                            <li>브랜드: <code style="color:var(--accent-blue);background:rgba(99,102,241,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">Vendor</code> 컬럼에서 자동 감지</li>
-                            <li>날짜: <code style="color:var(--accent-blue);background:rgba(99,102,241,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">Paid at</code> 컬럼에서 추출</li>
-                        </ul>
-                    </div>
-
-                    <!-- TikTok specific -->
-                    <div id="raw-guide-tiktok" class="raw-guide" style="display:none;">
-                        <ul style="color:var(--text-muted);font-size:0.8rem;padding-left:1.2rem;margin:0;line-height:1.8;">
-                            <li>CSV 형식 (TikTok Shop 주문 내보내기)</li>
-                            <li>필수 컬럼: Order ID, Seller SKU, Product Name, Quantity, Order Amount</li>
-                            <li>브랜드: SKU 접두사 또는 상품명에서 자동 감지<br>
-                                <span style="font-size:0.73rem;">DR-* → 닥터블릿, CALO-* → Calo</span></li>
-                            <li>날짜: <code style="color:var(--accent-purple);background:rgba(139,92,246,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">Created Time</code> 컬럼에서 추출</li>
-                        </ul>
-                    </div>
-
-                    <!-- Shopee specific -->
-                    <div id="raw-guide-shopee" class="raw-guide" style="display:none;">
-                        <ul style="color:var(--text-muted);font-size:0.8rem;padding-left:1.2rem;margin:0;line-height:1.8;">
-                            <li>Excel 형식 (Shopee Shop Stats 다운로드)</li>
-                            <li>시트: Placed Order, Product Contribution 등</li>
-                            <li>브랜드: 파일명에서 자동 감지 (예: <code style="color:var(--accent-amber);background:rgba(245,158,11,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">drblet</code>.sg.shopee)</li>
-                            <li>날짜: 파일명의 YYYYMMDD에서 추출</li>
-                        </ul>
-                    </div>
-
-                    <!-- Qoo10 specific -->
-                    <div id="raw-guide-qoo10" class="raw-guide" style="display:none;">
-                        <ul style="color:var(--text-muted);font-size:0.8rem;padding-left:1.2rem;margin:0;line-height:1.8;">
-                            <li>Excel 형식 (Qoo10 거래현황 다운로드)</li>
-                            <li>시트: <code style="color:var(--accent-green);background:rgba(34,197,94,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">data</code> (상품번호, 상품명, 브랜드명, 거래금액 등)</li>
-                            <li>브랜드: <code style="color:var(--accent-green);background:rgba(34,197,94,0.1);padding:0.1rem 0.3rem;border-radius:4px;font-size:0.7rem;">브랜드명</code> 컬럼에서 자동 감지</li>
-                            <li>날짜: 파일명의 YYYYMMDD에서 추출 (데이터에 날짜 컬럼 없음)</li>
-                        </ul>
                     </div>
                 </div>
             </div>
@@ -155,22 +124,22 @@
                     <tbody>
                         <tr>
                             <td><span style="background:rgba(99,102,241,0.1);color:var(--accent-blue);padding:0.15rem 0.5rem;border-radius:5px;font-size:0.75rem;font-weight:600;">Shopify</span></td>
-                            <td class="text-end" style="font-weight:600;">{{ shopify_count|default:"0" }}</td>
+                            <td class="text-end" style="font-weight:600;" id="cnt-shopify">{{ shopify_count|default:"0" }}</td>
                             <td class="text-end" style="color:var(--text-muted);font-size:0.8rem;">{{ shopify_latest|default:"-" }}</td>
                         </tr>
                         <tr>
                             <td><span style="background:rgba(139,92,246,0.1);color:var(--accent-purple);padding:0.15rem 0.5rem;border-radius:5px;font-size:0.75rem;font-weight:600;">TikTok</span></td>
-                            <td class="text-end" style="font-weight:600;">{{ tiktok_count|default:"0" }}</td>
+                            <td class="text-end" style="font-weight:600;" id="cnt-tiktok">{{ tiktok_count|default:"0" }}</td>
                             <td class="text-end" style="color:var(--text-muted);font-size:0.8rem;">{{ tiktok_latest|default:"-" }}</td>
                         </tr>
                         <tr>
                             <td><span style="background:rgba(245,158,11,0.1);color:var(--accent-amber);padding:0.15rem 0.5rem;border-radius:5px;font-size:0.75rem;font-weight:600;">Shopee</span></td>
-                            <td class="text-end" style="font-weight:600;">{{ shopee_count|default:"0" }}</td>
+                            <td class="text-end" style="font-weight:600;" id="cnt-shopee">{{ shopee_count|default:"0" }}</td>
                             <td class="text-end" style="color:var(--text-muted);font-size:0.8rem;">{{ shopee_latest|default:"-" }}</td>
                         </tr>
                         <tr>
                             <td><span style="background:rgba(34,197,94,0.1);color:var(--accent-green);padding:0.15rem 0.5rem;border-radius:5px;font-size:0.75rem;font-weight:600;">Qoo10</span></td>
-                            <td class="text-end" style="font-weight:600;">{{ qoo10_count|default:"0" }}</td>
+                            <td class="text-end" style="font-weight:600;" id="cnt-qoo10">{{ qoo10_count|default:"0" }}</td>
                             <td class="text-end" style="color:var(--text-muted);font-size:0.8rem;">{{ qoo10_latest|default:"-" }}</td>
                         </tr>
                     </tbody>
@@ -188,6 +157,75 @@ function updateRawGuide(platform) {
     const guideId = platform ? ('raw-guide-' + platform) : 'raw-guide-auto';
     const guide = document.getElementById(guideId);
     if (guide) guide.style.display = 'block';
+}
+
+function showResult(ok, msg) {
+    const area = document.getElementById('result-area');
+    const cls = ok ? 'alert-success' : 'alert-danger';
+    const icon = ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill';
+    area.innerHTML = '<div class="alert ' + cls + ' d-flex align-items-center" style="font-size:0.85rem;">' +
+        '<i class="bi ' + icon + '" style="margin-right:0.5rem;"></i>' +
+        '<div>' + msg + '</div>' +
+        '</div>';
+    area.style.display = 'block';
+    area.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function doUpload() {
+    const fileInput = document.getElementById('rawfile');
+    const file = fileInput.files[0];
+    if (!file) {
+        showResult(false, '파일을 선택해주세요.');
+        return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+        showResult(false, '파일이 너무 큽니다 (' + Math.round(file.size/1024/1024) + 'MB). 최대 10MB');
+        return;
+    }
+
+    // UI: 폼 숨기고 로딩 표시
+    document.getElementById('upload-form').style.display = 'none';
+    document.getElementById('upload-progress').style.display = 'block';
+    document.getElementById('result-area').style.display = 'none';
+    document.getElementById('progress-text').textContent =
+        '"' + file.name + '" 업로드 및 임포트 중...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('platform', document.getElementById('platform').value);
+    formData.append('clear_date', document.getElementById('clearDate').checked ? 'on' : '');
+
+    fetch('/api/upload-raw/', {
+        method: 'POST',
+        body: formData,
+    })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        // 로딩 숨기고 폼 복원
+        document.getElementById('upload-progress').style.display = 'none';
+        document.getElementById('upload-form').style.display = 'block';
+
+        if (data.ok) {
+            showResult(true, data.message || '임포트 완료!');
+            // 건수 업데이트
+            if (data.counts) {
+                if (data.counts.shopify != null) document.getElementById('cnt-shopify').textContent = data.counts.shopify.toLocaleString();
+                if (data.counts.tiktok != null) document.getElementById('cnt-tiktok').textContent = data.counts.tiktok.toLocaleString();
+                if (data.counts.shopee != null) document.getElementById('cnt-shopee').textContent = data.counts.shopee.toLocaleString();
+                if (data.counts.qoo10 != null) document.getElementById('cnt-qoo10').textContent = data.counts.qoo10.toLocaleString();
+            }
+        } else {
+            showResult(false, data.error || '알 수 없는 오류');
+        }
+        // 파일 입력 초기화
+        fileInput.value = '';
+    })
+    .catch(function(err) {
+        document.getElementById('upload-progress').style.display = 'none';
+        document.getElementById('upload-form').style.display = 'block';
+        showResult(false, '서버 연결 실패: ' + err.message);
+        fileInput.value = '';
+    });
 }
 </script>
 {% endblock %}

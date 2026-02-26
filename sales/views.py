@@ -339,63 +339,7 @@ def upload_excel(request):
 
 
 def upload_raw(request):
-    """플랫폼별 RAW 파일 업로드 (CSV/Excel)"""
-    if request.method == 'POST' and request.FILES.get('file'):
-        f = request.FILES['file']
-        original_name = f.name
-
-        # 파일 사이즈 제한 (10MB)
-        if f.size > 10 * 1024 * 1024:
-            messages.error(request, f'파일이 너무 큽니다 ({f.size // 1024 // 1024}MB). 최대 10MB까지 가능합니다.')
-            return redirect('sales:upload_raw')
-
-        platform = request.POST.get('platform', '')
-        clear_date = request.POST.get('clear_date') == 'on'
-
-        path = _save_upload(f)
-
-        try:
-            # 원본 파일명에서 자동 감지 (사용자 미지정 시)
-            if not platform:
-                platform = _detect_platform(original_name) or ''
-
-            cmd_args = [path, '--original-filename', original_name]
-            if platform:
-                cmd_args += ['--platform', platform]
-            if clear_date:
-                cmd_args.append('--clear-date')
-
-            # stdout/stderr 캡처로 실제 결과 확인
-            out = StringIO()
-            err = StringIO()
-            call_command('import_raw', *cmd_args, stdout=out, stderr=err)
-
-            platform_names = {
-                'shopify': 'Shopify', 'tiktok': 'TikTok',
-                'shopee': 'Shopee', 'qoo10': 'Qoo10',
-            }
-            pname = platform_names.get(platform, '자동감지')
-            output = out.getvalue().strip()
-            # 마지막 줄만 표시 (예: "[TIKTOK] 1767건 임포트 완료!")
-            last_line = output.split('\n')[-1] if output else ''
-            messages.success(request, f'[{pname}] {last_line}')
-
-            error_output = err.getvalue().strip()
-            if error_output:
-                messages.warning(request, f'경고: {error_output[:200]}')
-        except Exception as e:
-            err_msg = str(e)[:300]
-            messages.error(request, f'RAW 임포트 실패: {err_msg}')
-        finally:
-            # 임시 파일 정리
-            try:
-                os.remove(path)
-            except OSError:
-                pass
-
-        return redirect('sales:upload_raw')
-
-    # RAW 데이터 현황
+    """플랫폼별 RAW 파일 업로드 페이지 (GET만)"""
     context = {
         'shopify_count': ShopifyOrder.objects.count(),
         'shopify_latest': ShopifyOrder.objects.aggregate(d=Max('order_date'))['d'],
@@ -407,6 +351,78 @@ def upload_raw(request):
         'qoo10_latest': Qoo10Order.objects.aggregate(d=Max('order_date'))['d'],
     }
     return render(request, 'sales/upload_raw.html', context)
+
+
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+def api_upload_raw(request):
+    """AJAX RAW 파일 업로드 API (JSON 응답)"""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST만 허용'}, status=405)
+
+    f = request.FILES.get('file')
+    if not f:
+        return JsonResponse({'ok': False, 'error': '파일이 없습니다'})
+
+    original_name = f.name
+
+    # 파일 사이즈 제한 (10MB)
+    if f.size > 10 * 1024 * 1024:
+        return JsonResponse({'ok': False, 'error': f'파일이 너무 큽니다 ({f.size // 1024 // 1024}MB). 최대 10MB'})
+
+    platform = request.POST.get('platform', '')
+    clear_date = request.POST.get('clear_date') == 'on'
+
+    path = _save_upload(f)
+
+    try:
+        if not platform:
+            platform = _detect_platform(original_name) or ''
+
+        cmd_args = [path, '--original-filename', original_name]
+        if platform:
+            cmd_args += ['--platform', platform]
+        if clear_date:
+            cmd_args.append('--clear-date')
+
+        out = StringIO()
+        err = StringIO()
+        call_command('import_raw', *cmd_args, stdout=out, stderr=err)
+
+        output = out.getvalue().strip()
+        last_line = output.split('\n')[-1] if output else '완료'
+        error_output = err.getvalue().strip()
+
+        result = {
+            'ok': True,
+            'message': last_line,
+            'platform': platform,
+            'filename': original_name,
+            'warning': error_output[:200] if error_output else None,
+        }
+
+        # 현황 데이터도 같이 반환
+        result['counts'] = {
+            'shopify': ShopifyOrder.objects.count(),
+            'tiktok': TiktokOrder.objects.count(),
+            'shopee': ShopeeOrder.objects.count(),
+            'qoo10': Qoo10Order.objects.count(),
+        }
+        return JsonResponse(result)
+
+    except Exception as e:
+        return JsonResponse({
+            'ok': False,
+            'error': str(e)[:300],
+            'platform': platform,
+            'filename': original_name,
+        })
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 def api_dashboard_data(request):
