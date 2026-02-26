@@ -289,6 +289,12 @@ def upload_excel(request):
     """엑셀/CSV 파일 업로드"""
     if request.method == 'POST' and request.FILES.get('file'):
         f = request.FILES['file']
+
+        # 파일 사이즈 제한 (10MB)
+        if f.size > 10 * 1024 * 1024:
+            messages.error(request, f'파일이 너무 큽니다 ({f.size // 1024 // 1024}MB). 최대 10MB까지 가능합니다.')
+            return redirect('sales:dashboard')
+
         region = request.POST.get('region', 'us')
         original_name = f.name
         path = _save_upload(f)
@@ -327,6 +333,12 @@ def upload_raw(request):
     if request.method == 'POST' and request.FILES.get('file'):
         f = request.FILES['file']
         original_name = f.name
+
+        # 파일 사이즈 제한 (10MB)
+        if f.size > 10 * 1024 * 1024:
+            messages.error(request, f'파일이 너무 큽니다 ({f.size // 1024 // 1024}MB). 최대 10MB까지 가능합니다.')
+            return redirect('sales:upload_raw')
+
         platform = request.POST.get('platform', '')
         clear_date = request.POST.get('clear_date') == 'on'
 
