@@ -15,7 +15,7 @@ import os
 import re
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, date
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from sales.models import ShopifyOrder, TiktokOrder, ShopeeOrder, Qoo10Order
 
@@ -173,29 +173,34 @@ class Command(BaseCommand):
 
         platform = options['platform'] or detect_platform(filename)
         if not platform:
-            self.stderr.write(self.style.ERROR(
+            raise CommandError(
                 f'플랫폼을 감지할 수 없습니다: {filename}\n'
                 f'--platform 옵션으로 지정해주세요 (shopify, tiktok, shopee, qoo10)'
-            ))
-            return
+            )
+
+        # 파일 존재 확인
+        if not os.path.exists(file_path):
+            raise CommandError(f'파일을 찾을 수 없습니다: {file_path}')
 
         self.stdout.write(f"플랫폼: {platform.upper()} | 파일: {filename}")
+        self.stdout.write(f"파일 크기: {os.path.getsize(file_path)} bytes")
 
-        try:
-            if platform == 'shopify':
-                self._import_shopify_csv(file_path, options['clear_date'])
-            elif platform == 'tiktok':
-                self._import_tiktok_csv(file_path, options['clear_date'])
-            elif platform == 'shopee':
-                self._import_shopee_excel(file_path, filename, options['clear_date'])
-            elif platform == 'qoo10':
-                self._import_qoo10_excel(file_path, filename, options['clear_date'])
-        except Exception as e:
-            self.stderr.write(self.style.ERROR(f"임포트 오류: {e}"))
-            raise
+        if platform == 'shopify':
+            count = self._import_shopify_csv(file_path, options['clear_date'])
+        elif platform == 'tiktok':
+            count = self._import_tiktok_csv(file_path, options['clear_date'])
+        elif platform == 'shopee':
+            count = self._import_shopee_excel(file_path, filename, options['clear_date'])
+        elif platform == 'qoo10':
+            count = self._import_qoo10_excel(file_path, filename, options['clear_date'])
+        else:
+            count = 0
+
+        if count == 0:
+            raise CommandError(f'[{platform.upper()}] 임포트할 유효한 데이터가 없습니다.')
 
         gc.collect()
-        self.stdout.write(self.style.SUCCESS(f"[{platform.upper()}] RAW 임포트 완료!"))
+        self.stdout.write(self.style.SUCCESS(f"[{platform.upper()}] {count}건 임포트 완료!"))
 
     @transaction.atomic
     def _import_shopify_csv(self, file_path, clear_date):
@@ -256,6 +261,7 @@ class Command(BaseCommand):
 
         total += _flush_batch(ShopifyOrder, batch)
         self.stdout.write(f"  → Shopify {total}건 임포트 완료")
+        return total
 
     @transaction.atomic
     def _import_tiktok_csv(self, file_path, clear_date):
@@ -320,6 +326,7 @@ class Command(BaseCommand):
 
         total += _flush_batch(TiktokOrder, batch)
         self.stdout.write(f"  → TikTok {total}건 임포트 완료")
+        return total
 
     @transaction.atomic
     def _import_shopee_excel(self, file_path, filename, clear_date):
@@ -402,6 +409,7 @@ class Command(BaseCommand):
         ShopeeOrder.objects.bulk_create(objects, batch_size=BATCH_SIZE)
         self.stdout.write(f"  → Shopee {len(objects)}건 임포트 완료")
         wb.close()
+        return len(objects)
 
     @transaction.atomic
     def _import_qoo10_excel(self, file_path, filename, clear_date):
@@ -412,9 +420,8 @@ class Command(BaseCommand):
 
         order_date = extract_date_from_filename(filename)
         if not order_date:
-            self.stderr.write(self.style.ERROR('파일명에서 날짜를 추출할 수 없습니다.'))
             wb.close()
-            return
+            raise CommandError(f'Qoo10 파일명에서 날짜를 추출할 수 없습니다: {filename}')
 
         self.stdout.write(f"  날짜: {order_date}")
 
@@ -468,3 +475,4 @@ class Command(BaseCommand):
         total += _flush_batch(Qoo10Order, batch)
         self.stdout.write(f"  → Qoo10 {total}건 임포트 완료")
         wb.close()
+        return total

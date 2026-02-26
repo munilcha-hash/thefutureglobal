@@ -2,6 +2,7 @@ import json
 import os
 import uuid
 import traceback
+from io import StringIO
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, Http404
@@ -303,20 +304,29 @@ def upload_excel(request):
         is_csv = original_name.lower().endswith('.csv')
 
         try:
+            out = StringIO()
+            err = StringIO()
             if is_csv:
                 # 원본 파일명에서 플랫폼 자동 감지
                 platform = _detect_platform(original_name)
                 cmd_args = [path, '--clear-date', '--original-filename', original_name]
                 if platform:
                     cmd_args += ['--platform', platform]
-                call_command('import_raw', *cmd_args)
-                messages.success(request, f'"{original_name}" RAW 데이터 임포트 완료!')
+                call_command('import_raw', *cmd_args, stdout=out, stderr=err)
+                output = out.getvalue().strip()
+                last_line = output.split('\n')[-1] if output else ''
+                messages.success(request, f'"{original_name}" {last_line}')
             else:
-                call_command('import_excel', path, '--region', region, '--clear')
+                call_command('import_excel', path, '--region', region, '--clear',
+                             stdout=out, stderr=err)
                 region_name = get_region_config(region).get('name', region)
                 messages.success(request, f'[{region_name}] "{original_name}" 임포트 완료!')
+
+            error_output = err.getvalue().strip()
+            if error_output:
+                messages.warning(request, f'경고: {error_output[:200]}')
         except Exception as e:
-            err_msg = str(e)[:200]
+            err_msg = str(e)[:300]
             messages.error(request, f'임포트 실패: {err_msg}')
         finally:
             # 임시 파일 정리
@@ -355,16 +365,26 @@ def upload_raw(request):
             if clear_date:
                 cmd_args.append('--clear-date')
 
-            call_command('import_raw', *cmd_args)
+            # stdout/stderr 캡처로 실제 결과 확인
+            out = StringIO()
+            err = StringIO()
+            call_command('import_raw', *cmd_args, stdout=out, stderr=err)
 
             platform_names = {
                 'shopify': 'Shopify', 'tiktok': 'TikTok',
                 'shopee': 'Shopee', 'qoo10': 'Qoo10',
             }
             pname = platform_names.get(platform, '자동감지')
-            messages.success(request, f'[{pname}] "{original_name}" RAW 데이터 임포트 완료!')
+            output = out.getvalue().strip()
+            # 마지막 줄만 표시 (예: "[TIKTOK] 1767건 임포트 완료!")
+            last_line = output.split('\n')[-1] if output else ''
+            messages.success(request, f'[{pname}] {last_line}')
+
+            error_output = err.getvalue().strip()
+            if error_output:
+                messages.warning(request, f'경고: {error_output[:200]}')
         except Exception as e:
-            err_msg = str(e)[:200]
+            err_msg = str(e)[:300]
             messages.error(request, f'RAW 임포트 실패: {err_msg}')
         finally:
             # 임시 파일 정리
