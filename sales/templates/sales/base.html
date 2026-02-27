@@ -316,7 +316,7 @@
             {% with first_month=months|first %}
             {% for brand_info in region_config.brands %}
             <li class="nav-item">
-                <a class="nav-link" href="{% if first_month %}{% url 'sales:brand_detail' brand_info.0 first_month.year first_month.month %}{% else %}{% url 'sales:upload_excel' %}{% endif %}">
+                <a class="nav-link" href="{% if first_month %}{% url 'sales:brand_detail' brand_info.0 first_month.year first_month.month %}{% else %}{% url 'sales:upload_raw' %}{% endif %}">
                     <i class="bi bi-hexagon-fill"></i> {{ brand_info.2 }}
                 </a>
             </li>
@@ -342,13 +342,8 @@
 
             <div class="nav-section mt-2">Settings</div>
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'upload_excel' %}active{% endif %}" href="{% url 'sales:upload_excel' %}">
-                    <i class="bi bi-cloud-arrow-up-fill"></i> 데이터 업로드
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'upload_raw' %}active{% endif %}" href="{% url 'sales:upload_raw' %}">
-                    <i class="bi bi-file-earmark-arrow-up-fill"></i> RAW 업로드
+                    <i class="bi bi-cloud-arrow-up-fill"></i> 데이터 업로드
                 </a>
             </li>
         </ul>

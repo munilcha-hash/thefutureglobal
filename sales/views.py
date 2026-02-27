@@ -287,65 +287,6 @@ def qoo10_orders(request):
     return render(request, 'sales/qoo10_orders.html', context)
 
 
-def upload_excel(request):
-    """엑셀/CSV 파일 업로드 페이지 (GET만)"""
-    return render(request, 'sales/upload.html')
-
-
-@csrf_exempt
-def api_upload_excel(request):
-    """AJAX 엑셀/CSV 업로드 API (JSON 응답)"""
-    if request.method != 'POST':
-        return JsonResponse({'ok': False, 'error': 'POST만 허용'}, status=405)
-
-    f = request.FILES.get('file')
-    if not f:
-        return JsonResponse({'ok': False, 'error': '파일이 없습니다'})
-
-    original_name = f.name
-    if f.size > 10 * 1024 * 1024:
-        return JsonResponse({'ok': False, 'error': f'파일이 너무 큽니다 ({f.size // 1024 // 1024}MB). 최대 10MB'})
-
-    region = request.POST.get('region', 'us')
-    path = _save_upload(f)
-    is_csv = original_name.lower().endswith('.csv')
-
-    try:
-        out = StringIO()
-        err = StringIO()
-        if is_csv:
-            platform = _detect_platform(original_name)
-            cmd_args = [path, '--clear-date', '--original-filename', original_name]
-            if platform:
-                cmd_args += ['--platform', platform]
-            call_command('import_raw', *cmd_args, stdout=out, stderr=err)
-        else:
-            call_command('import_excel', path, '--region', region, '--clear',
-                         stdout=out, stderr=err)
-
-        output = out.getvalue().strip()
-        last_line = output.split('\n')[-1] if output else '완료'
-        error_output = err.getvalue().strip()
-
-        return JsonResponse({
-            'ok': True,
-            'message': last_line,
-            'filename': original_name,
-            'warning': error_output[:200] if error_output else None,
-        })
-    except Exception as e:
-        return JsonResponse({
-            'ok': False,
-            'error': str(e)[:300],
-            'filename': original_name,
-        })
-    finally:
-        try:
-            os.remove(path)
-        except OSError:
-            pass
-
-
 def upload_raw(request):
     """플랫폼별 RAW 파일 업로드 페이지 (GET만)"""
     context = {
