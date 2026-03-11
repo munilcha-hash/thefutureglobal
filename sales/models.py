@@ -210,10 +210,10 @@ class BrandDailySales(models.Model):
 
 class ShopifyOrder(models.Model):
     """쇼피파이 주문 RAW (US)"""
-    region = models.CharField(max_length=10, choices=REGION_CHOICES, default='us', verbose_name='지역')
+    region = models.CharField(max_length=10, choices=REGION_CHOICES, default='us', db_index=True, verbose_name='지역')
     brand = models.CharField(max_length=20, verbose_name='브랜드')
     final_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, verbose_name='최종 매출')
-    order_date = models.DateField(null=True, verbose_name='날짜')
+    order_date = models.DateField(null=True, db_index=True, verbose_name='날짜')
     order_name = models.CharField(max_length=50, null=True, blank=True, verbose_name='주문번호')
     email = models.CharField(max_length=200, null=True, blank=True, verbose_name='이메일')
     financial_status = models.CharField(max_length=50, null=True, blank=True, verbose_name='결제상태')
@@ -240,10 +240,10 @@ class ShopifyOrder(models.Model):
 
 class TiktokOrder(models.Model):
     """틱톡샵 주문 RAW (US)"""
-    region = models.CharField(max_length=10, choices=REGION_CHOICES, default='us', verbose_name='지역')
+    region = models.CharField(max_length=10, choices=REGION_CHOICES, default='us', db_index=True, verbose_name='지역')
     brand = models.CharField(max_length=20, verbose_name='브랜드')
     final_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, verbose_name='최종 매출')
-    order_date = models.DateField(null=True, verbose_name='구매날짜')
+    order_date = models.DateField(null=True, db_index=True, verbose_name='구매날짜')
     cancel_date = models.DateField(null=True, blank=True, verbose_name='취소날짜')
     order_id = models.CharField(max_length=50, null=True, blank=True, verbose_name='주문ID')
     order_status = models.CharField(max_length=50, null=True, blank=True, verbose_name='주문상태')
@@ -265,10 +265,10 @@ class TiktokOrder(models.Model):
 
 class ShopeeOrder(models.Model):
     """쇼피 주문 RAW (China)"""
-    region = models.CharField(max_length=10, choices=REGION_CHOICES, default='cn', verbose_name='지역')
+    region = models.CharField(max_length=10, choices=REGION_CHOICES, default='cn', db_index=True, verbose_name='지역')
     brand = models.CharField(max_length=20, verbose_name='브랜드')
     final_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, verbose_name='최종 매출')
-    order_date = models.DateField(null=True, verbose_name='주문일자')
+    order_date = models.DateField(null=True, db_index=True, verbose_name='주문일자')
     order_id = models.CharField(max_length=50, null=True, blank=True, verbose_name='주문번호')
     order_status = models.CharField(max_length=50, null=True, blank=True, verbose_name='주문상태')
     product_name = models.TextField(null=True, blank=True, verbose_name='상품명')
@@ -288,10 +288,10 @@ class ShopeeOrder(models.Model):
 
 class Qoo10Order(models.Model):
     """큐텐 주문 RAW (Japan)"""
-    region = models.CharField(max_length=10, choices=REGION_CHOICES, default='jp', verbose_name='지역')
+    region = models.CharField(max_length=10, choices=REGION_CHOICES, default='jp', db_index=True, verbose_name='지역')
     brand = models.CharField(max_length=20, verbose_name='브랜드')
     final_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, verbose_name='최종 매출')
-    order_date = models.DateField(null=True, verbose_name='주문일자')
+    order_date = models.DateField(null=True, db_index=True, verbose_name='주문일자')
     order_id = models.CharField(max_length=50, null=True, blank=True, verbose_name='주문번호')
     order_status = models.CharField(max_length=50, null=True, blank=True, verbose_name='주문상태')
     product_name = models.TextField(null=True, blank=True, verbose_name='상품명')

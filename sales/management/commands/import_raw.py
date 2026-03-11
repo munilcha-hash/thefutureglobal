@@ -18,6 +18,7 @@ from datetime import datetime, date
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from sales.models import ShopifyOrder, TiktokOrder, ShopeeOrder, Qoo10Order
+from sales.utils import detect_platform
 
 BATCH_SIZE = 300
 
@@ -76,20 +77,6 @@ def safe_date(val):
             return datetime.strptime(clean, fmt).date()
         except ValueError:
             continue
-    return None
-
-
-def detect_platform(filename):
-    """파일명에서 플랫폼 자동 감지"""
-    fname = filename.lower()
-    if 'orders_export' in fname or '쇼피파이' in fname or 'shopify' in fname:
-        return 'shopify'
-    if 'all order' in fname or 'all_order' in fname or '틱톡' in fname or 'tiktok' in fname:
-        return 'tiktok'
-    if 'shopee' in fname or 'shop-stats' in fname or '쇼피' in fname:
-        return 'shopee'
-    if 'qoo10' in fname or 'transaction' in fname or '큐텐' in fname:
-        return 'qoo10'
     return None
 
 
