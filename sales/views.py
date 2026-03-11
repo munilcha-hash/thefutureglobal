@@ -153,15 +153,33 @@ def monthly_pnl(request, year, month):
 def brand_detail(request, brand_code, year, month):
     """브랜드별 상세"""
     region = _get_current_region(request)
-    brand = get_object_or_404(Brand, code=brand_code, region=region)
+    config = get_region_config(region)
+    channels = config.get('channels', {})
+
+    # Brand가 DB에 없으면 config에서 이름 가져와서 임시 객체 생성
+    try:
+        brand = Brand.objects.get(code=brand_code, region=region)
+    except Brand.DoesNotExist:
+        # region_config에서 브랜드 정보 찾기
+        brand_info = None
+        for code, name, name_kr in config.get('brands', []):
+            if code == brand_code:
+                brand_info = (code, name, name_kr)
+                break
+        if not brand_info:
+            from django.http import Http404
+            raise Http404
+        # DB에 없으면 생성
+        brand = Brand.objects.create(
+            code=brand_info[0], region=region,
+            name=brand_info[1], name_kr=brand_info[2]
+        )
+
     daily = BrandDailySales.objects.filter(brand=brand, year=year, month=month, region=region).order_by('date')
     totals = daily.aggregate(
         total_gsv=Sum('total_gsv'), total_b2c=Sum('b2c_total'),
         total_b2b=Sum('b2b_total'), total_refund=Sum('refund_total'),
     )
-
-    config = get_region_config(region)
-    channels = config.get('channels', {})
 
     context = {
         'brand': brand, 'year': year, 'month': month,
