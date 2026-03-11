@@ -316,7 +316,7 @@
             {% with first_month=months|first %}
             {% for brand_info in region_config.brands %}
             <li class="nav-item">
-                <a class="nav-link" href="{% if first_month %}{% url 'sales:brand_detail' brand_info.0 first_month.year first_month.month %}{% else %}{% url 'sales:upload_raw' %}{% endif %}">
+                <a class="nav-link" href="{% url 'sales:brand_detail' brand_info.0 first_month.year|default:2026 first_month.month|default:1 %}">
                     <i class="bi bi-hexagon-fill"></i> {{ brand_info.2 }}
                 </a>
             </li>
