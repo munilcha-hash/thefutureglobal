@@ -118,15 +118,15 @@
             <div class="card-body">
                 <canvas id="channelChart" height="240"></canvas>
                 <div class="mt-3" style="display:flex;flex-direction:column;gap:0.5rem;">
-                    {% for field, label in channels.items %}
+                    {% for ch in channel_list %}
                     <div class="d-flex justify-content-between align-items-center">
-                        <span style="font-size:0.8rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent-blue);margin-right:6px;"></span>{{ label }}</span>
-                        <span style="font-size:0.8rem;font-weight:600;">{% with val=channel_totals|default_if_none:"" %}{{ channel_totals|default:"" }}{% endwith %}</span>
+                        <span style="font-size:0.8rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent-blue);margin-right:6px;"></span>{{ ch.label }}</span>
+                        <span style="font-size:0.8rem;font-weight:600;">{{ ch.value|krw }}</span>
                     </div>
                     {% endfor %}
                     <div class="d-flex justify-content-between align-items-center" style="padding-top:0.35rem;border-top:1px solid var(--border-color);">
                         <span style="font-size:0.8rem;color:var(--accent-red)"><i class="bi bi-arrow-return-left"></i> 환불</span>
-                        <span style="font-size:0.8rem;font-weight:600;color:var(--accent-red)">{{ channel_totals.refund|krw }}</span>
+                        <span style="font-size:0.8rem;font-weight:600;color:var(--accent-red)">{{ refund_total|krw }}</span>
                     </div>
                 </div>
             </div>
@@ -242,14 +242,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Channel Doughnut - dynamic based on region
     const channelColors = ['#6366f1', '#f59e0b', '#8b5cf6', '#22c55e', '#06b6d4'];
-    const channelLabels = [{% for field, label in channels.items %}'{{ label }}',{% endfor %}];
-    const channelData = [{% for field in channel_fields %}{{ channel_totals|default:"{}"|default:"0" }},{% endfor %}];
-
-    // Build channel data array from template
-    const channelValues = [];
-    {% for field in channel_fields %}
-    channelValues.push({{ channel_totals|default:"{}" }});
-    {% endfor %}
+    const channelLabels = [{% for ch in channel_list %}'{{ ch.label }}',{% endfor %}];
+    const channelValues = [{% for ch in channel_list %}{{ ch.value|default:"0" }},{% endfor %}];
 
     if (channelLabels.length > 0) {
         new Chart(document.getElementById('channelChart'), {

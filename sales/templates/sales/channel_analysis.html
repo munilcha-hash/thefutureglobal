@@ -18,12 +18,12 @@
 </div>
 
 <div class="row g-3 mb-4">
-    {% for field, label in channels.items %}
+    {% for ch in channel_list %}
     <div class="col-md-3 col-6">
         <div class="stat-card">
             <div class="icon-box" style="background:rgba(99,102,241,0.1);color:var(--accent-blue);"><i class="bi bi-bag-fill"></i></div>
-            <div class="label">{{ label }}</div>
-            <div class="value" style="font-size:1.15rem">{% if totals %}{{ totals|default:"$0" }}{% else %}$0{% endif %}</div>
+            <div class="label">{{ ch.label }}</div>
+            <div class="value" style="font-size:1.15rem">{{ ch.value|krw }}</div>
         </div>
     </div>
     {% endfor %}

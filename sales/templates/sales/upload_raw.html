@@ -109,6 +109,42 @@
             </div>
         </div>
 
+        <!-- PNL 엑셀 업로드 -->
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-file-earmark-spreadsheet-fill" style="color:var(--accent-green);"></i> 매출/손익 엑셀 업로드</div>
+            <div class="card-body" style="padding:1.5rem;">
+                <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1.25rem;">
+                    지역별 매출/손익 관리 엑셀 파일을 업로드하면 손익관리, 브랜드 매출 데이터가 자동 임포트됩니다.
+                </p>
+                <div id="excel-result" style="display:none;margin-bottom:1rem;"></div>
+                <div id="excel-form">
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight:600;font-size:0.85rem;">지역 선택</label>
+                        <select class="form-select" id="excel-region">
+                            <option value="us">🇺🇸 미국 (US)</option>
+                            <option value="jp">🇯🇵 일본 (JP)</option>
+                            <option value="cn">🇨🇳 중국/동남아 (CN)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight:600;font-size:0.85rem;">엑셀 파일</label>
+                        <input type="file" class="form-control" id="excel-file" accept=".xlsx,.xls">
+                        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem;">
+                            예: <code style="font-size:0.7rem;">26년_미국사업팀_매출_손익 관리.xlsx</code> &middot; 최대 30MB
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary w-100" style="padding:0.75rem;background:var(--gradient-green);" onclick="doExcelUpload()">
+                        <i class="bi bi-file-earmark-spreadsheet-fill"></i> 매출/손익 업로드 및 임포트
+                    </button>
+                </div>
+                <div id="excel-progress" style="display:none;text-align:center;padding:1.5rem 0;">
+                    <div class="spinner-border text-success" role="status" style="width:2.5rem;height:2.5rem;"><span class="visually-hidden">Loading...</span></div>
+                    <p id="excel-progress-text" style="margin-top:1rem;color:var(--text-secondary);font-size:0.9rem;">엑셀 임포트 중...</p>
+                    <p style="color:var(--text-muted);font-size:0.75rem;">시간이 좀 걸릴 수 있습니다. 잠시만 기다려주세요.</p>
+                </div>
+            </div>
+        </div>
+
         <!-- 최근 임포트 현황 -->
         <div class="card">
             <div class="card-header"><i class="bi bi-clock-history"></i> RAW 데이터 현황</div>
@@ -169,6 +205,45 @@ function showResult(ok, msg) {
         '</div>';
     area.style.display = 'block';
     area.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function doExcelUpload() {
+    const fileInput = document.getElementById('excel-file');
+    const file = fileInput.files[0];
+    if (!file) { showExcelResult(false, '파일을 선택해주세요.'); return; }
+    if (file.size > 30 * 1024 * 1024) { showExcelResult(false, '파일이 너무 큽니다.'); return; }
+
+    document.getElementById('excel-form').style.display = 'none';
+    document.getElementById('excel-progress').style.display = 'block';
+    document.getElementById('excel-result').style.display = 'none';
+    document.getElementById('excel-progress-text').textContent = '"' + file.name + '" 임포트 중...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('region', document.getElementById('excel-region').value);
+
+    fetch('/api/upload-excel/', { method: 'POST', body: formData })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        document.getElementById('excel-progress').style.display = 'none';
+        document.getElementById('excel-form').style.display = 'block';
+        showExcelResult(data.ok, data.ok ? (data.message || '임포트 완료!') : (data.error || '오류'));
+        fileInput.value = '';
+    })
+    .catch(function(err) {
+        document.getElementById('excel-progress').style.display = 'none';
+        document.getElementById('excel-form').style.display = 'block';
+        showExcelResult(false, '서버 연결 실패: ' + err.message);
+        fileInput.value = '';
+    });
+}
+
+function showExcelResult(ok, msg) {
+    const area = document.getElementById('excel-result');
+    const cls = ok ? 'alert-success' : 'alert-danger';
+    const icon = ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill';
+    area.innerHTML = '<div class="alert ' + cls + ' d-flex align-items-center" style="font-size:0.85rem;"><i class="bi ' + icon + '" style="margin-right:0.5rem;"></i><div>' + msg + '</div></div>';
+    area.style.display = 'block';
 }
 
 function doUpload() {

@@ -96,12 +96,21 @@ def dashboard(request):
 
     channels = config.get('channels', {})
 
+    # 채널 데이터를 템플릿 친화적 리스트로 변환
+    channel_list = []
+    for field in channel_fields:
+        label = channels.get(field, field)
+        value = channel_totals.get(field) or 0
+        channel_list.append({'field': field, 'label': label, 'value': value})
+    refund_total = channel_totals.get('refund') or 0
+
     context = {
         'months': months,
         'selected_year': selected_year,
         'selected_month': selected_month,
         'totals': totals,
-        'channel_totals': channel_totals,
+        'channel_list': channel_list,
+        'refund_total': refund_total,
         'brand_totals': brand_totals,
         'exchange_rate': exchange_rate,
         'channels': channels,
@@ -186,12 +195,20 @@ def channel_analysis(request):
 
     channels = config.get('channels', {})
 
+    # 채널 데이터를 템플릿 친화적 리스트로 변환
+    channel_list = []
+    for field in channel_fields:
+        label = channels.get(field, field)
+        value = totals.get(field) or 0
+        channel_list.append({'field': field, 'label': label, 'value': value})
+
     context = {
         'year': year, 'month': month,
         'daily': daily, 'totals': totals,
         'months': _get_available_months(region),
         'channels': channels,
         'channel_fields': channel_fields,
+        'channel_list': channel_list,
     }
     return render(request, 'sales/channel_analysis.html', context)
 
@@ -337,6 +354,58 @@ def api_upload_raw(request):
             'error': str(e)[:300],
             'platform': platform,
             'filename': original_name,
+        })
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+@csrf_exempt
+def api_upload_excel(request):
+    """AJAX PNL 엑셀 업로드 API (JSON 응답)"""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST만 허용'}, status=405)
+
+    f = request.FILES.get('file')
+    if not f:
+        return JsonResponse({'ok': False, 'error': '파일이 없습니다'})
+
+    region = request.POST.get('region', '')
+    if region not in ('us', 'cn', 'jp'):
+        return JsonResponse({'ok': False, 'error': '지역을 선택해주세요 (us/cn/jp)'})
+
+    if f.size > 30 * 1024 * 1024:
+        return JsonResponse({'ok': False, 'error': f'파일이 너무 큽니다 ({f.size // 1024 // 1024}MB). 최대 30MB'})
+
+    path = save_upload(f)
+
+    try:
+        out = StringIO()
+        err = StringIO()
+        call_command('import_excel', path, '--region', region, '--clear',
+                     stdout=out, stderr=err)
+
+        output = out.getvalue().strip()
+        last_line = output.split('\n')[-1] if output else '완료'
+        error_output = err.getvalue().strip()
+
+        return JsonResponse({
+            'ok': True,
+            'message': last_line,
+            'region': region,
+            'filename': f.name,
+            'detail': output[-500:] if output else '',
+            'warning': error_output[:200] if error_output else None,
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'ok': False,
+            'error': str(e)[:300],
+            'region': region,
+            'filename': f.name,
         })
     finally:
         try:
